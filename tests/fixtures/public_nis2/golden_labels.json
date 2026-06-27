@@ -1,0 +1,108 @@
+{
+  "documents": [
+    {
+      "file": "risk_management_policy_positive.md",
+      "expected_categories": ["risk_management"],
+      "expected_evidence_min": 1,
+      "expected_gaps": [],
+      "must_include_terms": ["risk assessment", "review", "owner"],
+      "must_not_include_categories": ["incident_reporting"]
+    },
+    {
+      "file": "incident_response_policy_positive.md",
+      "expected_categories": ["incident_reporting"],
+      "expected_evidence_min": 1,
+      "expected_gaps": [],
+      "must_include_terms": ["incident response", "24 hours", "72 hours"],
+      "must_not_include_categories": ["supplier_security"]
+    },
+    {
+      "file": "business_continuity_positive.md",
+      "expected_categories": ["business_continuity"],
+      "expected_evidence_min": 1,
+      "expected_gaps": [],
+      "must_include_terms": ["business continuity", "tested", "recovery time"],
+      "must_not_include_categories": ["supplier_security"]
+    },
+    {
+      "file": "supplier_security_positive.md",
+      "expected_categories": ["supplier_security"],
+      "expected_evidence_min": 1,
+      "expected_gaps": [],
+      "must_include_terms": ["supplier security", "supplier review", "owner"],
+      "must_not_include_categories": ["incident_reporting"]
+    },
+    {
+      "file": "access_control_positive.md",
+      "expected_categories": ["access_control"],
+      "expected_evidence_min": 1,
+      "expected_gaps": [],
+      "must_include_terms": ["access control", "least privilege", "access review"],
+      "must_not_include_categories": ["business_continuity"]
+    },
+    {
+      "file": "vulnerability_management_positive.md",
+      "expected_categories": ["vulnerability_management"],
+      "expected_evidence_min": 1,
+      "expected_gaps": [],
+      "must_include_terms": ["vulnerability management", "patch management", "owner"],
+      "must_not_include_categories": ["access_control"]
+    },
+    {
+      "file": "risk_management_policy_gap.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["risk_management"],
+      "must_include_terms": ["risk assessment", "missing"],
+      "must_not_include_categories": ["risk_management"]
+    },
+    {
+      "file": "incident_response_missing_timeline.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["incident_reporting"],
+      "must_include_terms": ["incident response", "timeline", "missing"],
+      "must_not_include_categories": ["incident_reporting"]
+    },
+    {
+      "file": "supplier_security_vague.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["supplier_security"],
+      "must_include_terms": ["supplier security", "ad hoc", "not documented"],
+      "must_not_include_categories": ["supplier_security"]
+    },
+    {
+      "file": "access_control_no_review.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["access_control"],
+      "must_include_terms": ["access control", "no review"],
+      "must_not_include_categories": ["access_control"]
+    },
+    {
+      "file": "mixed_language_de_en.md",
+      "expected_categories": ["risk_management", "incident_reporting"],
+      "expected_evidence_min": 2,
+      "expected_gaps": [],
+      "must_include_terms": ["Risikoanalyse", "incident response"],
+      "must_not_include_categories": ["supplier_security"]
+    },
+    {
+      "file": "misleading_security_marketing.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["marketing_only"],
+      "must_include_terms": [],
+      "must_not_include_categories": [
+        "risk_management",
+        "incident_reporting",
+        "business_continuity",
+        "supplier_security",
+        "access_control",
+        "vulnerability_management"
+      ],
+      "max_strong_evidence": 0
+    }
+  ]
+}
