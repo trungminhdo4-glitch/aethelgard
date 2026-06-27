@@ -74,7 +74,14 @@ docs/
   pilot-readiness.md       # Pilot-Readiness-Gaps und P0-Schritte
   pilot-onepager.md        # Kundennaher Pilot-Zuschnitt
   pilot-email.md           # Outreach-Varianten fuer MSP/KMU
+  follow-up-sequence.md    # Vorsichtige 3/7/14-Werktage Follow-up-Sequenz
+  icp-scoring.md           # Zielkunden-Scoring fuer erste Outreach-Welle
+  objection-handling.md    # Kurze Pilot-Einwandbehandlung ohne Hype
+  outreach-readiness.md    # Outreach-Gates, Claims und Demo-Run-Zusammenfassung
+  outreach-target-list-template.csv # Company-level CRM-/Tracking-Template
   pilot-scope.md           # In/Out of Scope, Inputs, Done/Stop Criteria
+  target-selection-guide.md # Manuelle Zielauswahl ohne private Lead-Daten
+  pilot-call-notes-template.md # Call-Notes und Go/No-Go-Erfassung
   evaluation/              # Public/Synthetic Eval-Plan, Quellenmanifest, Labeling
 scripts/
   check_public_fixtures.py # statischer Fixture Safety Gate
@@ -208,6 +215,8 @@ from aethelgard.mvp1 import (
   `test_public_real_docs_manifest.py`, `test_pilot_readiness_check.py`
 - Pilot-Ops-Tests: `test_customer_like_eval.py`,
   `test_calibration_report.py`, `test_public_url_check.py`
+- Outreach-Prep-Tests: `test_outreach_docs.py` prueft Pflichtdateien, Disclaimer,
+  Sample-Pack-Verbote, company-level Target-Template, Go/No-Go und enge Claims.
 
 ## Bekannte Gotchas
 
@@ -263,12 +272,14 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | MVP1 Schritt 3 (Classifier + Pipeline-Integration) | OK | 2026-06-27 |
 | Paid-Pilot Hardening (Audit, Handover, Readiness) | OK | 2026-06-28 |
 | Paid Pilot Ops Readiness (Customer-like Pack, Calibration, Demo/Legal/Backup) | OK | 2026-06-28 |
-| Tests | 184/184 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
+| Outreach Preparation (Docs, ICP, Follow-up, Objections, Call Pack) | OUTREACH_READY_WITH_OWNER_GATE | 2026-06-28 |
+| Tests | 190/190 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
 | Real Public Source URL Check | Opt-in; 403/Timeout werden fuer offizielle Quellen als WARN klassifiziert | 2026-06-28 |
 | Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_OPS_READY` | 2026-06-28 |
+| Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
 | Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-28 |
 | Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen | 2026-06-28 |
@@ -276,4 +287,4 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)
 
-- Outreach an 3-5 MSP/Security-Beratungen mit 15-Minuten-Demo und Bitte um ein redacted, nicht-sensitives Sample Pack.
+- Owner waehlt manuell 3-5 Zielunternehmen aus und nutzt die MSP/Security-Beratung-E-Mail mit engem Claim fuer eine 15-Minuten-Demo-Anfrage.

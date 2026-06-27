@@ -23,3 +23,11 @@
 | Ergebnis | OK: `compileall`, `pytest` (176 passed, 1 skipped opt-in network, 17 subtests), `check_public_fixtures.py` (18 files), opt-in public URL check, `ruff`, `mypy`, `triage --audit`, `eval --audit` und `check_pilot_readiness.py` gruen; kein Push, keine fremden Dokumente oder Secrets |
 
 Post-commit correction: previous run committed as e17da1c feat: harden paid pilot readiness.
+
+### 2026-06-28 01:52 - Pilot outreach preparation
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Outreach-Paket mit Readiness-Doku, ICP-Scoring, Target-Template, E-Mail-Varianten, Follow-ups, Objection Handling, Call-Pack und Dokument-Gate |
+| Commit | - |
+| Ergebnis | OK: `compileall`, `pytest` (190 passed, 1 skipped opt-in network, 17 subtests), `check_public_fixtures.py`, `check_pilot_readiness.py`, `ruff`, `mypy`, Customer-like Demo/Eval und Outreach-Dokumenttest gruen; kein Push, keine echten Leads, keine privaten Kontakte, keine Secrets |
