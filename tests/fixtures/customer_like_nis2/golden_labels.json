@@ -1,0 +1,77 @@
+{
+  "documents": [
+    {
+      "file": "01_security_policy_mixed_quality.md",
+      "expected_categories": ["risk_management"],
+      "expected_evidence_min": 1,
+      "expected_gaps": ["supplier_security"],
+      "must_include_terms": ["risk assessment", "access review", "planned only"],
+      "must_not_include_categories": ["supplier_security"]
+    },
+    {
+      "file": "02_incident_response_partial.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["incident_reporting"],
+      "must_include_terms": ["incident response", "not defined", "24 hours", "72 hours"],
+      "must_not_include_categories": ["incident_reporting"],
+      "max_strong_evidence": 0
+    },
+    {
+      "file": "03_supplier_security_annex.md",
+      "expected_categories": ["supplier_security"],
+      "expected_evidence_min": 1,
+      "expected_gaps": [],
+      "must_include_terms": ["supplier security", "questionnaire", "contractual security"],
+      "must_not_include_categories": ["incident_reporting"]
+    },
+    {
+      "file": "04_backup_restore_procedure.md",
+      "expected_categories": ["business_continuity"],
+      "expected_evidence_min": 1,
+      "expected_gaps": [],
+      "must_include_terms": ["business continuity", "recovery time", "restore ticket"],
+      "must_not_include_categories": ["supplier_security"]
+    },
+    {
+      "file": "05_access_review_export_redacted.md",
+      "expected_categories": ["access_control"],
+      "expected_evidence_min": 1,
+      "expected_gaps": [],
+      "must_include_terms": ["access control", "access review", "owner approval"],
+      "must_not_include_categories": ["business_continuity"]
+    },
+    {
+      "file": "06_vulnerability_process.md",
+      "expected_categories": ["vulnerability_management"],
+      "expected_evidence_min": 1,
+      "expected_gaps": [],
+      "must_include_terms": ["vulnerability management", "patch management", "owner approval"],
+      "must_not_include_categories": ["access_control"]
+    },
+    {
+      "file": "07_business_continuity_tabletop.md",
+      "expected_categories": ["business_continuity"],
+      "expected_evidence_min": 1,
+      "expected_gaps": ["supplier_security"],
+      "must_include_terms": ["business continuity", "missing"],
+      "must_not_include_categories": ["supplier_security"]
+    },
+    {
+      "file": "08_management_summary_marketing_noise.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["marketing_only"],
+      "must_include_terms": ["intentionally avoids"],
+      "must_not_include_categories": [
+        "risk_management",
+        "incident_reporting",
+        "business_continuity",
+        "supplier_security",
+        "access_control",
+        "vulnerability_management"
+      ],
+      "max_strong_evidence": 0
+    }
+  ]
+}

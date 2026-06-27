@@ -27,10 +27,16 @@ REPORT_MD_NAME: Final[str] = "evidence_report.md"
 RUN_SUMMARY_NAME: Final[str] = "run_summary.json"
 EVAL_JSON_NAME: Final[str] = "eval_report.json"
 EVAL_MD_NAME: Final[str] = "eval_report.md"
+CALIBRATION_JSON_NAME: Final[str] = "calibration_report.json"
+CALIBRATION_MD_NAME: Final[str] = "calibration_report.md"
 
 SUPPORTED_DOCUMENT_SUFFIXES: Final[frozenset[str]] = frozenset({".md", ".txt", ".pdf"})
 STRONG_EVIDENCE_THRESHOLD: Final[float] = 0.7
+MEDIUM_EVIDENCE_THRESHOLD: Final[float] = 0.6
 MAX_REPORT_CITATION_CHARS: Final[int] = 280
+MIN_STRONG_FEATURES: Final[int] = 3
+MIN_MEDIUM_FEATURES: Final[int] = 2
+OUTDATED_YEAR_CUTOFF: Final[int] = 2024
 
 CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
     "risk_management": (
@@ -92,6 +98,111 @@ GAP_TERMS: Final[tuple[str, ...]] = (
     "planned only",
     "unclear",
     "vague",
+)
+
+NEGATIVE_SIGNAL_TERMS: Final[dict[str, tuple[str, ...]]] = {
+    "marketing_only": (
+        "brochure",
+        "marketing",
+        "market-leading",
+        "world class",
+        "world-class",
+        "we care",
+        "we value security",
+        "strategic priority",
+        "intentionally avoids",
+    ),
+    "template_only": (
+        "template",
+        "placeholder",
+        "planned only",
+        "to be completed",
+        "tbd",
+        "not defined",
+    ),
+    "outdated": (
+        "outdated",
+        "expired",
+        "last reviewed 2021",
+        "last reviewed 2022",
+        "last reviewed 2023",
+        "review date: 2021",
+        "review date: 2022",
+        "review date: 2023",
+    ),
+    "vague_control": (
+        "ad hoc",
+        "best effort",
+        "important",
+        "should",
+        "vague",
+        "not documented",
+        "no evidence",
+    ),
+}
+
+OWNER_TERMS: Final[tuple[str, ...]] = (
+    "accountable",
+    "assigned to",
+    "ciso",
+    "committee",
+    "owner",
+    "responsible",
+    "role",
+    "team",
+)
+REVIEW_OR_FREQUENCY_TERMS: Final[tuple[str, ...]] = (
+    "annually",
+    "biannual",
+    "cadence",
+    "daily",
+    "every six months",
+    "monthly",
+    "quarterly",
+    "review",
+    "review date",
+    "reviewed",
+    "twice per year",
+    "weekly",
+)
+PROCESS_OR_CONTROL_TERMS: Final[tuple[str, ...]] = (
+    "approved",
+    "control",
+    "documented",
+    "implemented",
+    "procedure",
+    "process",
+    "richtlinie",
+    "runbook",
+    "tested",
+    "workflow",
+)
+OUTPUT_OR_EVIDENCE_TERMS: Final[tuple[str, ...]] = (
+    "evidence",
+    "export",
+    "log",
+    "notes",
+    "record",
+    "records",
+    "report",
+    "result",
+    "ticket",
+)
+TIMELINE_TERMS: Final[tuple[str, ...]] = (
+    "24 hours",
+    "72 hours",
+    "escalation",
+    "meldepflicht",
+    "timeline",
+    "within",
+)
+SUPPLIER_CONTROL_TERMS: Final[tuple[str, ...]] = (
+    "contractual",
+    "due diligence",
+    "onboarding",
+    "questionnaire",
+    "review",
+    "security requirements",
 )
 
 DISCLAIMER: Final[str] = (
@@ -216,7 +327,7 @@ def run_eval(
     labels_path: Path | str,
     out_dir: Path | str | None = None,
 ) -> dict[str, Any]:
-    """Evaluate public fixtures against golden labels."""
+    """Evaluate fixtures against golden labels."""
     fixtures_root = Path(fixtures_path)
     labels = _read_json(Path(labels_path))
     thresholds = EvaluationThresholds()
@@ -364,14 +475,95 @@ def run_eval(
         "tool_version": __version__,
         "disclaimer": DISCLAIMER,
     }
+    calibration_report = build_calibration_report(eval_report, report, labels)
+    eval_report["calibration"] = calibration_report
 
     if out_dir is not None:
         out_path = Path(out_dir)
         out_path.mkdir(parents=True, exist_ok=True)
         _write_json(out_path / EVAL_JSON_NAME, eval_report)
         _write_text(out_path / EVAL_MD_NAME, render_eval_markdown(eval_report))
+        _write_json(out_path / CALIBRATION_JSON_NAME, calibration_report)
+        _write_text(out_path / CALIBRATION_MD_NAME, render_calibration_markdown(calibration_report))
 
     return eval_report
+
+
+def build_calibration_report(
+    eval_report: Mapping[str, Any],
+    triage_report: Mapping[str, Any],
+    labels: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build synthetic calibration indicators without claiming scientific metrics."""
+    documents = cast(list[Mapping[str, Any]], triage_report["per_document"])
+    labels_list = cast(list[Mapping[str, Any]], labels.get("documents", []))
+    documents_by_file = {str(document["file"]): document for document in documents}
+    expected_categories = sorted(
+        {
+            str(category)
+            for label in labels_list
+            for category in cast(Sequence[object], label.get("expected_categories", []))
+        }
+    )
+    detected_categories = sorted(
+        {
+            str(category)
+            for document in documents
+            for category in cast(Sequence[object], document.get("strong_categories", []))
+        }
+    )
+    quality_counts = _sum_quality_counts(documents)
+    expected_gaps = {
+        str(label["file"]): [str(gap) for gap in cast(Sequence[object], label["expected_gaps"])]
+        for label in labels_list
+        if label.get("expected_gaps")
+    }
+    missed_gaps = _find_missed_gaps(expected_gaps, documents_by_file)
+    false_positive_cases = sorted(
+        set(cast(Sequence[str], eval_report["false_positive_cases"]))
+        | set(_quality_false_positive_watchlist(documents))
+    )
+    false_negative_cases = sorted(
+        set(cast(Sequence[str], eval_report["false_negative_cases"])) | set(missed_gaps)
+    )
+    calibration = {
+        "run_id": eval_report["run_id"],
+        "timestamp": eval_report["timestamp"],
+        "fixtures_path": eval_report["fixtures_path"],
+        "labels_path": eval_report["labels_path"],
+        "metric_note": (
+            "Synthetic calibration indicators only. These are proxy metrics for local "
+            "heuristic tuning, not scientific precision/recall or a compliance measure."
+        ),
+        "total_documents": eval_report["documents_total"],
+        "expected_categories": expected_categories,
+        "detected_categories": detected_categories,
+        "strong_evidence_count": quality_counts["strong"],
+        "medium_evidence_count": quality_counts["medium"],
+        "weak_evidence_count": quality_counts["weak"],
+        "warning_count": quality_counts["warning"],
+        "expected_gaps": expected_gaps,
+        "missed_gaps": missed_gaps,
+        "likely_false_positives": false_positive_cases,
+        "likely_false_negatives": false_negative_cases,
+        "per_category_precision_proxy": _build_category_proxy(
+            labels_list,
+            eval_report,
+            "precision",
+        ),
+        "per_category_recall_proxy": _build_category_proxy(labels_list, eval_report, "recall"),
+        "recommended_threshold_changes": _recommend_threshold_changes(
+            false_positive_cases,
+            false_negative_cases,
+            quality_counts,
+        ),
+        "human_review_required": (
+            "Human review is required for every warning, every medium/weak item, and every "
+            "strong item before customer handover. This report is not legal advice, an audit, "
+            "a certification, or a NIS-2 compliance guarantee."
+        ),
+    }
+    return calibration
 
 
 def render_triage_markdown(report: Mapping[str, Any]) -> str:
@@ -511,6 +703,53 @@ def render_eval_markdown(report: Mapping[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_calibration_markdown(report: Mapping[str, Any]) -> str:
+    """Render Markdown for calibration indicators."""
+    quality_lines = [
+        "- Strong evidence: %d" % report["strong_evidence_count"],
+        "- Medium evidence: %d" % report["medium_evidence_count"],
+        "- Weak evidence: %d" % report["weak_evidence_count"],
+        "- Warnings: %d" % report["warning_count"],
+    ]
+    lines = [
+        "# AethelGard Calibration Report",
+        "",
+        "## Scope",
+        "- Fixtures: `%s`" % report["fixtures_path"],
+        "- Labels: `%s`" % report["labels_path"],
+        "- Total documents: %d" % report["total_documents"],
+        "",
+        "## Metric Note",
+        str(report["metric_note"]),
+        "",
+        "## Quality Counts",
+        *quality_lines,
+        "",
+        "## Category Coverage",
+        "- Expected categories: `%s`" % ", ".join(report["expected_categories"]),
+        "- Detected strong categories: `%s`" % ", ".join(report["detected_categories"]),
+        "",
+        "## Gap Indicators",
+        "- Expected gap documents: %d" % len(report["expected_gaps"]),
+        "- Missed gap documents: `%s`" % ", ".join(report["missed_gaps"]),
+        "",
+        "## False Positive / False Negative Watchlist",
+        "- Likely false positives: `%s`" % ", ".join(report["likely_false_positives"]),
+        "- Likely false negatives: `%s`" % ", ".join(report["likely_false_negatives"]),
+        "",
+        "## Recommended Threshold Changes",
+    ]
+    lines.extend("- %s" % item for item in report["recommended_threshold_changes"])
+    lines.extend(
+        [
+            "",
+            "## Human Review Required",
+            str(report["human_review_required"]),
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def _build_document_result(
     document_path: Path,
     input_root: Path,
@@ -520,36 +759,240 @@ def _build_document_result(
     categories: dict[str, int] = defaultdict(int)
     strong_categories: set[str] = set()
     gap_warnings: list[str] = []
+    quality_counts: dict[str, int] = {"strong": 0, "medium": 0, "weak": 0, "warning": 0}
 
     for item in evidence_items:
         category = item.requirement_id
         citation = _bounded_citation(" ".join(item.source_citation.split()))
+        quality_result = _evaluate_evidence_quality(
+            category,
+            citation,
+            item.is_compliant,
+            item.confidence_score,
+        )
+        quality = str(quality_result["quality"])
+        quality_counts[quality] += 1
         evidence.append(
             {
                 "category": category,
                 "is_compliant": item.is_compliant,
                 "confidence_score": item.confidence_score,
-                "strong": item.is_compliant and item.confidence_score >= STRONG_EVIDENCE_THRESHOLD,
+                "quality": quality,
+                "quality_signals": quality_result["signals"],
+                "concrete_features": quality_result["features"],
+                "strong": quality == "strong",
                 "source_citation": citation,
             }
         )
         categories[category] += 1
-        if item.is_compliant and item.confidence_score >= STRONG_EVIDENCE_THRESHOLD:
+        if quality == "strong":
             strong_categories.add(category)
-        if not item.is_compliant or _contains_gap_term(citation):
-            gap_warnings.append("%s evidence needs review" % category)
+        if quality == "warning" or _contains_gap_term(citation):
+            signal_text = ", ".join(cast(list[str], quality_result["signals"])[:3])
+            suffix = ": %s" % signal_text if signal_text else ""
+            gap_warnings.append("%s evidence needs review%s" % (category, suffix))
 
     deduped_warnings = sorted(set(gap_warnings))
     return {
         "file": _safe_relative(document_path, input_root),
         "evidence_count": len(evidence),
         "strong_evidence_count": sum(1 for item in evidence if item["strong"]),
+        "quality_counts": quality_counts,
         "categories": dict(sorted(categories.items())),
         "strong_categories": sorted(strong_categories),
         "gap_warnings": deduped_warnings,
         "warnings": deduped_warnings,
         "evidence": evidence,
     }
+
+
+def _evaluate_evidence_quality(
+    category: str,
+    citation: str,
+    is_compliant: bool,
+    confidence_score: float,
+) -> dict[str, object]:
+    text = citation.lower()
+    signals = _detect_negative_signals(category, text)
+    features = _detect_concrete_features(category, text)
+    hard_signals = {
+        "marketing_only",
+        "template_only",
+        "outdated",
+        "missing_timeline",
+        "vague_supplier_controls",
+    }
+    if "owner" not in features:
+        signals.append("missing_owner")
+    if "review_or_frequency" not in features:
+        signals.append("missing_review_date")
+
+    if not is_compliant or any(signal in hard_signals for signal in signals):
+        quality = "warning"
+    elif confidence_score >= STRONG_EVIDENCE_THRESHOLD and len(features) >= MIN_STRONG_FEATURES:
+        quality = "strong"
+    elif confidence_score >= MEDIUM_EVIDENCE_THRESHOLD and len(features) >= MIN_MEDIUM_FEATURES:
+        quality = "medium"
+    else:
+        quality = "weak"
+
+    return {
+        "quality": quality,
+        "signals": sorted(set(signals)),
+        "features": sorted(set(features)),
+    }
+
+
+def _detect_negative_signals(category: str, text: str) -> list[str]:
+    signals = [
+        signal
+        for signal, terms in NEGATIVE_SIGNAL_TERMS.items()
+        if any(term in text for term in terms)
+    ]
+    for year in range(2000, OUTDATED_YEAR_CUTOFF):
+        if str(year) in text and "review" in text:
+            signals.append("outdated")
+            break
+    if category == "incident_reporting" and not any(term in text for term in TIMELINE_TERMS):
+        signals.append("missing_timeline")
+    if category == "supplier_security" and not any(
+        term in text for term in SUPPLIER_CONTROL_TERMS
+    ):
+        signals.append("vague_supplier_controls")
+    return sorted(set(signals))
+
+
+def _detect_concrete_features(category: str, text: str) -> list[str]:
+    features: list[str] = []
+    if any(term in text for term in OWNER_TERMS):
+        features.append("owner")
+    if any(term in text for term in REVIEW_OR_FREQUENCY_TERMS):
+        features.append("review_or_frequency")
+    if any(term in text for term in PROCESS_OR_CONTROL_TERMS):
+        features.append("process_or_control")
+    if any(term in text for term in OUTPUT_OR_EVIDENCE_TERMS):
+        features.append("output_or_evidence")
+    if category == "incident_reporting" and any(term in text for term in TIMELINE_TERMS):
+        features.append("timeline")
+    if category == "supplier_security" and any(term in text for term in SUPPLIER_CONTROL_TERMS):
+        features.append("supplier_control")
+    return features
+
+
+def _sum_quality_counts(documents: Sequence[Mapping[str, Any]]) -> dict[str, int]:
+    totals = {"strong": 0, "medium": 0, "weak": 0, "warning": 0}
+    for document in documents:
+        counts = cast(Mapping[str, int], document.get("quality_counts", {}))
+        for quality in totals:
+            totals[quality] += int(counts.get(quality, 0))
+    return totals
+
+
+def _find_missed_gaps(
+    expected_gaps: Mapping[str, Sequence[str]],
+    documents_by_file: Mapping[str, Mapping[str, Any]],
+) -> list[str]:
+    missed: list[str] = []
+    for file_name in expected_gaps:
+        document = documents_by_file.get(file_name)
+        if document is None:
+            missed.append(file_name)
+            continue
+        warning_count = int(cast(Mapping[str, int], document["quality_counts"]).get("warning", 0))
+        if not document.get("gap_warnings") and warning_count == 0:
+            missed.append(file_name)
+    return sorted(missed)
+
+
+def _quality_false_positive_watchlist(documents: Sequence[Mapping[str, Any]]) -> list[str]:
+    watchlist: list[str] = []
+    noisy_signals = {"marketing_only", "template_only", "outdated", "vague_supplier_controls"}
+    for document in documents:
+        has_noisy_strong = any(
+            bool(item.get("strong"))
+            and bool(noisy_signals & set(cast(Sequence[str], item.get("quality_signals", []))))
+            for item in cast(Sequence[Mapping[str, Any]], document.get("evidence", []))
+        )
+        if has_noisy_strong:
+            watchlist.append(str(document["file"]))
+    return watchlist
+
+
+def _build_category_proxy(
+    labels: Sequence[Mapping[str, Any]],
+    eval_report: Mapping[str, Any],
+    metric: str,
+) -> dict[str, dict[str, float | int | None]]:
+    per_document = cast(Sequence[Mapping[str, Any]], eval_report["per_document"])
+    label_by_file = {str(label["file"]): label for label in labels}
+    totals: dict[str, dict[str, int]] = {
+        category: {"tp": 0, "fp": 0, "fn": 0} for category in CATEGORY_KEYWORDS
+    }
+    for result in per_document:
+        file_name = str(result["file"])
+        label = label_by_file.get(file_name, {})
+        expected = {
+            str(item)
+            for item in cast(Sequence[object], label.get("expected_categories", []))
+        }
+        actual = {
+            str(item)
+            for item in cast(Sequence[object], result.get("actual_strong_categories", []))
+        }
+        must_not = {
+            str(item)
+            for item in cast(Sequence[object], label.get("must_not_include_categories", []))
+        }
+        for category in CATEGORY_KEYWORDS:
+            if category in expected and category in actual:
+                totals[category]["tp"] += 1
+            if category in actual and (category not in expected or category in must_not):
+                totals[category]["fp"] += 1
+            if category in expected and category not in actual:
+                totals[category]["fn"] += 1
+
+    proxies: dict[str, dict[str, float | int | None]] = {}
+    for category, counts in totals.items():
+        if metric == "precision":
+            denominator = counts["tp"] + counts["fp"]
+        else:
+            denominator = counts["tp"] + counts["fn"]
+        value = round(counts["tp"] / denominator, 4) if denominator else None
+        proxies[category] = {
+            "%s_proxy" % metric: value,
+            "true_positive_proxy": counts["tp"],
+            "false_positive_proxy": counts["fp"],
+            "false_negative_proxy": counts["fn"],
+        }
+    return proxies
+
+
+def _recommend_threshold_changes(
+    false_positive_cases: Sequence[str],
+    false_negative_cases: Sequence[str],
+    quality_counts: Mapping[str, int],
+) -> list[str]:
+    recommendations: list[str] = []
+    if false_positive_cases:
+        recommendations.append(
+            "Keep the strong threshold at %.2f and require concrete quality features before "
+            "handover; review noisy files manually." % STRONG_EVIDENCE_THRESHOLD
+        )
+    if false_negative_cases:
+        recommendations.append(
+            "Do not lower the threshold globally; first expand category keywords or labels for "
+            "missed synthetic cases."
+        )
+    if quality_counts.get("warning", 0) > 0:
+        recommendations.append(
+            "Route all warning evidence to human review; warnings are expected for ambiguous "
+            "pilot documents."
+        )
+    if not recommendations:
+        recommendations.append(
+            "No threshold change recommended for this synthetic pack; keep quality guards active."
+        )
+    return recommendations
 
 
 def _contains_gap_term(text: str) -> bool:

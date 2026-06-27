@@ -3,7 +3,8 @@
 ## Label Unit
 
 Each fixture document receives one golden-label row in
-`tests/fixtures/public_nis2/golden_labels.json`.
+`tests/fixtures/public_nis2/golden_labels.json` or
+`tests/fixtures/customer_like_nis2/golden_labels.json`.
 
 ## Fields
 
@@ -21,6 +22,11 @@ Strong evidence means:
 
 - `is_compliant` is `true`.
 - `confidence_score >= 0.7`.
+- The report-derived `quality` is `strong`.
+- The snippet has concrete features such as owner, review/frequency, process/control,
+  output/evidence, incident timeline, or supplier-control detail.
+- The snippet is not marketing-only, template-only, outdated, or missing required owner,
+  review, timeline, or supplier-control signals.
 
 ## Gap Fixture Rule
 

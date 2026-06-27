@@ -40,6 +40,7 @@ def test_triage_per_document_required_fields() -> None:
         "file",
         "evidence_count",
         "strong_evidence_count",
+        "quality_counts",
         "categories",
         "strong_categories",
         "gap_warnings",
@@ -48,6 +49,8 @@ def test_triage_per_document_required_fields() -> None:
     }
 
     assert required.issubset(document)
+    assert {"strong", "medium", "weak", "warning"}.issubset(document["quality_counts"])
+    assert {"quality", "quality_signals", "concrete_features"}.issubset(document["evidence"][0])
 
 
 def test_eval_report_required_fields() -> None:
@@ -71,7 +74,9 @@ def test_eval_report_required_fields() -> None:
         "thresholds",
         "threshold_status",
         "per_document",
+        "calibration",
     }
 
     assert required.issubset(report)
     assert report["status"] == "PILOT_READY"
+    assert report["calibration"]["metric_note"].startswith("Synthetic calibration")

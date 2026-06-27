@@ -8,7 +8,10 @@ import re
 import sys
 from pathlib import Path
 
-DEFAULT_SCAN_ROOTS = (Path("tests") / "fixtures" / "public_nis2",)
+DEFAULT_SCAN_ROOTS = (
+    Path("tests") / "fixtures" / "public_nis2",
+    Path("tests") / "fixtures" / "customer_like_nis2",
+)
 MAX_FILE_BYTES = 200_000
 ALLOWED_EMAIL_DOMAINS = ("example.com", "example.invalid")
 ALLOWED_DOMAIN_SUFFIXES = (".invalid",)
@@ -140,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
         for finding in findings:
             print("FAIL: %s" % finding, file=sys.stderr)
         return 1
-    print("OK: %d public fixture files passed safety checks" % len(files))
+    print("OK: %d synthetic fixture files passed safety checks" % len(files))
     return 0
 
 

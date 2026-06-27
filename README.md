@@ -17,8 +17,9 @@ human pre-review of security documentation through local evidence triage.
 - Public synthetic NIS-2 fixture corpus with golden labels.
 - Demo CLI for JSON/Markdown evidence reports.
 - Evaluation CLI with pilot-readiness thresholds.
+- Calibration reports with proxy quality indicators for synthetic fixture packs.
 - Optional metadata-only audit ledger for CLI runs.
-- Paid-pilot readiness checker.
+- Paid-pilot ops readiness checker.
 - Static fixture safety check for secrets, PII, domains, IPs, and phone-like values.
 
 ## Install
@@ -71,6 +72,8 @@ Outputs:
 
 - `reports/eval/eval_report.json`
 - `reports/eval/eval_report.md`
+- `reports/eval/calibration_report.json`
+- `reports/eval/calibration_report.md`
 
 Current synthetic evaluation result:
 
@@ -80,6 +83,15 @@ Current synthetic evaluation result:
 - category hit rate: 1.0
 - false positives: 0
 - false negatives: 0
+
+Customer-like synthetic pilot eval:
+
+```powershell
+python -m aethelgard.cli eval --fixtures tests/fixtures/customer_like_nis2 --labels tests/fixtures/customer_like_nis2/golden_labels.json --out reports/customer-like-eval --audit
+```
+
+This second pack is invented customer-like data with mixed quality, intentional gaps,
+marketing noise, and calibration warnings.
 
 Exit codes:
 
@@ -100,6 +112,7 @@ Outputs:
 
 Status values:
 
+- `PILOT_OPS_READY`: local pilot operations pack is present and local readiness gates pass.
 - `PILOT_READY_PAID_CONTROLLED`: ready only for a small controlled pilot with
   non-sensitive documents and human review.
 - `NOT_READY`: a required local gate is missing.
@@ -131,5 +144,6 @@ for evidence in parser.parse_text("Our risk assessment process is documented and
 ## Pilot Status
 
 AethelGard is now `PILOT_READY` for an internal/friendly synthetic pilot and
-`PILOT_READY_PAID_CONTROLLED` for a small paid pilot using non-sensitive documents,
-human review, local processing, and explicit deletion/retention handling.
+`PILOT_OPS_READY` for preparing outreach to 3-5 MSP/security consultancies, provided
+the first real pilot still uses non-sensitive documents, human review, local processing,
+and explicit deletion/retention handling.

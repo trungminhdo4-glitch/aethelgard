@@ -1,0 +1,2 @@
+company_name,type,contact_name,contact_url,reason_fit,status,last_contact,next_action,notes
+Example GmbH,MSP,,https://example.invalid/contact,"Example row only; replace with approved target research",not_contacted,,review_fit,"Do not add real leads before owner-approved outreach"

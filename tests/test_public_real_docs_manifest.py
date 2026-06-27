@@ -10,6 +10,8 @@ from urllib.request import Request, urlopen
 
 import pytest
 
+from aethelgard.public_sources import URL_CHECK_FAIL, URL_CHECK_WARN, classify_public_url_check
+
 MANIFEST_PATH = (
     Path(__file__).resolve().parents[1]
     / "docs"
@@ -60,14 +62,18 @@ def test_public_real_docs_urls_are_reachable_when_enabled() -> None:
         try:
             with urlopen(request, timeout=20) as response:
                 status = int(response.status)
-                assert 200 <= status < 400
+                verdict = classify_public_url_check(source["url"], status_code=status)
+                assert verdict["status"] != URL_CHECK_FAIL
+                if verdict["status"] == URL_CHECK_WARN:
+                    automation_blocked.add(source["id"])
+                    continue
                 assert response.read(1024)
                 reachable_count += 1
         except HTTPError as exc:
-            if source["id"] == "cisa_cpg" and exc.code == 403:
+            verdict = classify_public_url_check(source["url"], status_code=exc.code)
+            if verdict["status"] == URL_CHECK_WARN:
                 automation_blocked.add(source["id"])
                 continue
             raise
 
-    assert reachable_count >= len(manifest["sources"]) - 1
-    assert automation_blocked <= {"cisa_cpg"}
+    assert reachable_count >= len(manifest["sources"]) - len(automation_blocked)

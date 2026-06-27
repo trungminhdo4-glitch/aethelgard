@@ -54,7 +54,8 @@ src/aethelgard/
     classifier.py          # Klassifikations-Engine (deterministische Heuristik)
   audit.py                 # Append-only JSONL Run-Ledger (Metadaten, keine Inhalte)
   cli.py                   # CLI: triage + eval
-  triage.py                # Report- und Evaluations-Engine
+  public_sources.py        # Pure URL-Check-Klassifikation fuer offizielle Quellen
+  triage.py                # Report-, Quality-, Calibration- und Evaluations-Engine
 README.md                  # Nutzer-Quickstart und Produktkern
 docs/
   data-handling.md         # Daten-/Privacy-Grenzen fuer Fixtures und Pilot
@@ -62,6 +63,12 @@ docs/
   deletion-confirmation-template.md # Loeschbestaetigung fuer Pilotdaten
   human-review-checklist.md # Pflicht-Review vor Kundenhandover
   report-schema.md         # JSON-Report-Felder und Semantik
+  risk-register.md         # Pilot-Ops-Risikoregister mit Fix/Alternative
+  legal-review-checklist.md # Legal/Privacy Review-Gates, keine Rechtsberatung
+  backup-restore.md        # Lokale Git-Bundle-Backup/Restore-Anleitung
+  demo-handover.md         # Demo-Outputs und Kundenhandover-Grenzen
+  demo-script.md           # 15-Minuten Demo-Ablauf
+  pilot-call-agenda.md     # 30-Minuten Pilot-Call-Struktur
   paid-pilot-readiness.md  # Go/No-Go-Gates fuer kontrollierten Paid Pilot
   product-positioning.md   # Verifizierte Produktpositionierung / Pilot-ICP
   pilot-readiness.md       # Pilot-Readiness-Gaps und P0-Schritte
@@ -73,6 +80,7 @@ scripts/
   check_public_fixtures.py # statischer Fixture Safety Gate
   check_pilot_readiness.py # kontrollierter Paid-Pilot Gate-Report
 tests/fixtures/public_nis2/ # 17 synthetische Fixtures + golden_labels.json
+tests/fixtures/customer_like_nis2/ # 8 customer-like synthetische Fixtures + Labels
 tests/mvp1/
   test_document_parser.py  # 69 Unit-Tests, vollstaendig gemockt
   test_pdf_handler.py      # 40 Unit-Tests, pypdf gemockt
@@ -198,6 +206,8 @@ from aethelgard.mvp1 import (
 - Paid-Pilot-Hardening-Tests: `test_audit_ledger.py`,
   `test_adversarial_fixtures.py`, `test_report_handover.py`,
   `test_public_real_docs_manifest.py`, `test_pilot_readiness_check.py`
+- Pilot-Ops-Tests: `test_customer_like_eval.py`,
+  `test_calibration_report.py`, `test_public_url_check.py`
 
 ## Bekannte Gotchas
 
@@ -252,11 +262,13 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | MVP1 Schritt 2 (PDF-Handler + Integration) | OK | 2026-06-27 |
 | MVP1 Schritt 3 (Classifier + Pipeline-Integration) | OK | 2026-06-27 |
 | Paid-Pilot Hardening (Audit, Handover, Readiness) | OK | 2026-06-28 |
-| Tests | 176/176 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
+| Paid Pilot Ops Readiness (Customer-like Pack, Calibration, Demo/Legal/Backup) | OK | 2026-06-28 |
+| Tests | 184/184 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
-| Fixture Safety | `python scripts/check_public_fixtures.py` gruen (18 Dateien) | 2026-06-28 |
-| Real Public Source URL Check | `AETHELGARD_RUN_NETWORK_TESTS=1 pytest tests/test_public_real_docs_manifest.py -q` gruen (CISA 403 als bekannter Automation-Block erlaubt) | 2026-06-28 |
-| Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_READY_PAID_CONTROLLED` | 2026-06-28 |
+| Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
+| Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
+| Real Public Source URL Check | Opt-in; 403/Timeout werden fuer offizielle Quellen als WARN klassifiziert | 2026-06-28 |
+| Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_OPS_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
 | Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-28 |
 | Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen | 2026-06-28 |
@@ -264,5 +276,4 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)
 
-- Ein owner-approved nicht-sensitives Beispielpaket durch `triage --audit` laufen lassen
-- Human-review-Checkliste in einem echten Friendly-/Paid-Pilot-Handover anwenden
+- Outreach an 3-5 MSP/Security-Beratungen mit 15-Minuten-Demo und Bitte um ein redacted, nicht-sensitives Sample Pack.
