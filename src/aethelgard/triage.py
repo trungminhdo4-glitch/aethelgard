@@ -30,6 +30,7 @@ EVAL_MD_NAME: Final[str] = "eval_report.md"
 
 SUPPORTED_DOCUMENT_SUFFIXES: Final[frozenset[str]] = frozenset({".md", ".txt", ".pdf"})
 STRONG_EVIDENCE_THRESHOLD: Final[float] = 0.7
+MAX_REPORT_CITATION_CHARS: Final[int] = 280
 
 CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
     "risk_management": (
@@ -94,9 +95,12 @@ GAP_TERMS: Final[tuple[str, ...]] = (
 )
 
 DISCLAIMER: Final[str] = (
-    "AethelGard supports local evidence triage for human pre-review. "
-    "It does not provide legal advice, certification, audit sign-off, or a final "
-    "NIS-2 compliance decision."
+    "This report is an automated evidence triage aid. It is not legal advice, "
+    "does not provide legal advice, not an audit opinion, and not a certification "
+    "of NIS-2 compliance. Human review is required. Dieser Bericht ist eine automatisierte "
+    "Vorpruefung von Evidenzen. Er ist keine Rechtsberatung, kein Auditurteil "
+    "und keine Zertifizierung von NIS-2-Konformitaet. Eine menschliche Pruefung "
+    "ist erforderlich."
 )
 
 
@@ -320,14 +324,20 @@ def run_eval(
         "category_hit_rate": category_hit_rate >= thresholds.min_category_hit_rate,
         "marketing_false_positive": marketing_strong <= thresholds.max_marketing_strong_evidence,
         "gap_documents": _gap_documents_pass(per_document, labels.get("documents", [])),
+        "per_document_pass": documents_passed == documents_total,
     }
     pilot_ready = all(threshold_status.values())
     eval_report = {
         "run_id": _build_run_id("eval"),
         "timestamp": datetime.now(UTC).isoformat(),
+        "triage_run_id": report["run_id"],
         "fixtures_path": str(fixtures_root),
         "labels_path": str(labels_path),
         "status": "PILOT_READY" if pilot_ready else "NOT_PILOT_READY",
+        "document_count": report["document_count"],
+        "parsed_count": report["parsed_count"],
+        "failed_count": report["failed_count"],
+        "evidence_count": report["evidence_count"],
         "documents_total": documents_total,
         "documents_passed": documents_passed,
         "documents_failed": documents_total - documents_passed,
@@ -369,13 +379,14 @@ def render_triage_markdown(report: Mapping[str, Any]) -> str:
     lines = [
         "# AethelGard Evidence Triage Report",
         "",
-        "## Disclaimer",
-        str(report["disclaimer"]),
-        "",
         "## Scope",
         "- Input path: `%s`" % report["input_path"],
         "- Tool version: `%s`" % report["tool_version"],
-        "- Human review required before any compliance conclusion.",
+        "- Processing mode: local evidence triage for non-sensitive documents.",
+        "- Human review required before any customer handover or compliance conclusion.",
+        "",
+        "## Important Disclaimer",
+        str(report["disclaimer"]),
         "",
         "## Executive Summary",
         "- Documents discovered: %d" % report["document_count"],
@@ -383,7 +394,7 @@ def render_triage_markdown(report: Mapping[str, Any]) -> str:
         "- Parser failures: %d" % report["failed_count"],
         "- Evidence items: %d" % report["evidence_count"],
         "",
-        "## Documents",
+        "## Documents Processed",
     ]
     for document in report["per_document"]:
         lines.append("- `%s`: %d evidence items, %d strong" % (
@@ -392,15 +403,21 @@ def render_triage_markdown(report: Mapping[str, Any]) -> str:
             document["strong_evidence_count"],
         ))
 
-    lines.extend(["", "## Evidence By Category"])
+    lines.extend(["", "## Evidence by Category"])
     for category, count in report["categories"].items():
         lines.append("- `%s`: %d" % (category, count))
 
-    lines.extend(["", "## Evidence Details"])
+    lines.extend(["", "## Potential Gaps"])
+    if report["warnings"]:
+        lines.extend("- %s" % warning for warning in report["warnings"])
+    else:
+        lines.append("- No gap warnings emitted by this local heuristic.")
+
+    lines.extend(["", "## Items Requiring Human Review"])
     for document in report["per_document"]:
-        lines.append("### %s" % document["file"])
+        lines.append("### `%s`" % document["file"])
         if not document["evidence"]:
-            lines.append("- No evidence emitted.")
+            lines.append("- No evidence emitted; check whether the document is out of scope.")
             continue
         for item in document["evidence"]:
             lines.append(
@@ -413,20 +430,24 @@ def render_triage_markdown(report: Mapping[str, Any]) -> str:
                 )
             )
 
-    lines.extend(["", "## Possible Gaps And Warnings"])
-    if report["warnings"]:
-        lines.extend("- %s" % warning for warning in report["warnings"])
-    else:
-        lines.append("- No gap warnings emitted by this local heuristic.")
     lines.extend(
         [
             "",
-            "## False-Positive Notes",
-            "Heuristic evidence can be triggered by policy-like language. Marketing-only or vague "
-            "documents require human review and evaluation against the golden labels.",
+            "## False Positive Watchlist",
+            "- Marketing-only claims, empty templates, outdated policies, vague supplier language, "
+            "and missing incident timelines must not be accepted as final evidence.",
             "",
-            "## Human Review Required",
-            "Use this report as a triage aid only.",
+            "## Recommended Next Manual Checks",
+            "- Confirm that strong evidence maps to a real implemented control.",
+            "- Check whether every gap warning is a true gap or a wording issue.",
+            "- Look for missing categories that this keyword-based pass may not detect.",
+            "- Record reviewer notes before sharing the report with a customer.",
+            "",
+            "## Technical Run Metadata",
+            "- Run ID: `%s`" % report["run_id"],
+            "- Timestamp: `%s`" % report["timestamp"],
+            "- Tool version: `%s`" % report["tool_version"],
+            "- Local output contains snippets only; source documents are not embedded in full.",
         ]
     )
     return "\n".join(lines) + "\n"
@@ -502,7 +523,7 @@ def _build_document_result(
 
     for item in evidence_items:
         category = item.requirement_id
-        citation = " ".join(item.source_citation.split())
+        citation = _bounded_citation(" ".join(item.source_citation.split()))
         evidence.append(
             {
                 "category": category,
@@ -534,6 +555,19 @@ def _build_document_result(
 def _contains_gap_term(text: str) -> bool:
     lower = text.lower()
     return any(term in lower for term in GAP_TERMS)
+
+
+def _bounded_citation(text: str) -> str:
+    if len(text) <= MAX_REPORT_CITATION_CHARS:
+        return text
+    head_length = MAX_REPORT_CITATION_CHARS // 2
+    separator = " ... "
+    tail_length = MAX_REPORT_CITATION_CHARS - head_length - len(separator)
+    return "%s%s%s" % (
+        text[:head_length].rstrip(),
+        separator,
+        text[-tail_length:].lstrip(),
+    )
 
 
 def _missing_terms_in_evidence(
@@ -568,7 +602,7 @@ def _safe_relative(path: Path, root: Path) -> str:
 
 
 def _build_run_id(prefix: str) -> str:
-    return "%s-%s" % (prefix, datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"))
+    return "%s-%s" % (prefix, datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ"))
 
 
 def _read_json(path: Path) -> dict[str, Any]:

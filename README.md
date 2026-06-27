@@ -17,6 +17,8 @@ human pre-review of security documentation through local evidence triage.
 - Public synthetic NIS-2 fixture corpus with golden labels.
 - Demo CLI for JSON/Markdown evidence reports.
 - Evaluation CLI with pilot-readiness thresholds.
+- Optional metadata-only audit ledger for CLI runs.
+- Paid-pilot readiness checker.
 - Static fixture safety check for secrets, PII, domains, IPs, and phone-like values.
 
 ## Install
@@ -35,12 +37,13 @@ $env:PYTHONPATH = "D:\projects\aethelgard\src"
 python -m compileall -q src tests scripts
 python -m pytest -q
 python scripts/check_public_fixtures.py
+python scripts/check_pilot_readiness.py --out reports/readiness
 ```
 
 ## Demo Command
 
 ```powershell
-python -m aethelgard.cli triage --input tests/fixtures/public_nis2 --out reports/demo
+python -m aethelgard.cli triage --input tests/fixtures/public_nis2 --out reports/demo --audit
 ```
 
 Outputs:
@@ -48,19 +51,20 @@ Outputs:
 - `reports/demo/evidence_report.json`
 - `reports/demo/evidence_report.md`
 - `reports/demo/run_summary.json`
+- `reports/audit/aethelgard_runs.jsonl` when `--audit` is enabled
 
 Current synthetic demo summary:
 
-- documents discovered: 12
-- documents parsed: 12
+- documents discovered: 17
+- documents parsed: 17
 - parser failures: 0
-- evidence items: 56
+- evidence items: generated from positive, gap, and adversarial fixtures
 - exit code: 0
 
 ## Evaluation Command
 
 ```powershell
-python -m aethelgard.cli eval --fixtures tests/fixtures/public_nis2 --labels tests/fixtures/public_nis2/golden_labels.json --out reports/eval
+python -m aethelgard.cli eval --fixtures tests/fixtures/public_nis2 --labels tests/fixtures/public_nis2/golden_labels.json --out reports/eval --audit
 ```
 
 Outputs:
@@ -71,7 +75,7 @@ Outputs:
 Current synthetic evaluation result:
 
 - status: `PILOT_READY`
-- documents passed: 12/12
+- documents passed: 17/17
 - parser failures: 0
 - category hit rate: 1.0
 - false positives: 0
@@ -82,6 +86,23 @@ Exit codes:
 - `0`: command succeeded; evaluation also meets thresholds for `eval`.
 - `1`: technical failure.
 - `2`: evaluation completed but did not meet pilot-readiness thresholds.
+
+## Readiness Command
+
+```powershell
+python scripts/check_pilot_readiness.py --out reports/readiness
+```
+
+Outputs:
+
+- `reports/readiness/pilot_readiness.json`
+- `reports/readiness/pilot_readiness.md`
+
+Status values:
+
+- `PILOT_READY_PAID_CONTROLLED`: ready only for a small controlled pilot with
+  non-sensitive documents and human review.
+- `NOT_READY`: a required local gate is missing.
 
 ## Minimal Python Usage
 
@@ -104,9 +125,11 @@ for evidence in parser.parse_text("Our risk assessment process is documented and
   production data.
 - Do not commit third-party PDFs unless licensing and redistribution are explicitly clear.
 - Reports are written to `reports/`, which is ignored by Git.
+- `--audit` stores metadata only: command, paths, counts, status, version, warnings, and
+  errors. It does not store document text or extracted citations.
 
 ## Pilot Status
 
-AethelGard is now `PILOT_READY` for an internal/friendly synthetic pilot. It is still
-`ALMOST_READY` for a paid pilot because real customer onboarding, data-handling terms,
-and human review workflow still need validation.
+AethelGard is now `PILOT_READY` for an internal/friendly synthetic pilot and
+`PILOT_READY_PAID_CONTROLLED` for a small paid pilot using non-sensitive documents,
+human review, local processing, and explicit deletion/retention handling.

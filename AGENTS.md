@@ -52,19 +52,27 @@ src/aethelgard/
     document_parser.py     # Parser (OOP + Functional), Text + PDF-Dispatch, parse_and_classify
     pdf_handler.py         # PDF Page-Streaming (optional pypdf)
     classifier.py          # Klassifikations-Engine (deterministische Heuristik)
+  audit.py                 # Append-only JSONL Run-Ledger (Metadaten, keine Inhalte)
   cli.py                   # CLI: triage + eval
   triage.py                # Report- und Evaluations-Engine
 README.md                  # Nutzer-Quickstart und Produktkern
 docs/
   data-handling.md         # Daten-/Privacy-Grenzen fuer Fixtures und Pilot
+  sample-data-request.md   # Kundentext fuer nicht-sensitive Pilot-Samples
+  deletion-confirmation-template.md # Loeschbestaetigung fuer Pilotdaten
+  human-review-checklist.md # Pflicht-Review vor Kundenhandover
   report-schema.md         # JSON-Report-Felder und Semantik
+  paid-pilot-readiness.md  # Go/No-Go-Gates fuer kontrollierten Paid Pilot
   product-positioning.md   # Verifizierte Produktpositionierung / Pilot-ICP
   pilot-readiness.md       # Pilot-Readiness-Gaps und P0-Schritte
   pilot-onepager.md        # Kundennaher Pilot-Zuschnitt
+  pilot-email.md           # Outreach-Varianten fuer MSP/KMU
+  pilot-scope.md           # In/Out of Scope, Inputs, Done/Stop Criteria
   evaluation/              # Public/Synthetic Eval-Plan, Quellenmanifest, Labeling
 scripts/
   check_public_fixtures.py # statischer Fixture Safety Gate
-tests/fixtures/public_nis2/ # 12 synthetische Fixtures + golden_labels.json
+  check_pilot_readiness.py # kontrollierter Paid-Pilot Gate-Report
+tests/fixtures/public_nis2/ # 17 synthetische Fixtures + golden_labels.json
 tests/mvp1/
   test_document_parser.py  # 69 Unit-Tests, vollstaendig gemockt
   test_pdf_handler.py      # 40 Unit-Tests, pypdf gemockt
@@ -165,7 +173,7 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **167 Unit-Tests**, vollstaendig deterministisch
+- **176 Unit-Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
 - Externe IO (Dateisystem, pypdf) zu 100 % gemockt via `unittest.mock`
 - AAA-Pattern (Arrange, Act, Assert)
 - Test-Klassen (document_parser): `TestComplianceEvidenceSchema`,
@@ -187,6 +195,9 @@ from aethelgard.mvp1 import (
   Iterator-Laziness, Requirement-Map, Empty-Input)
 - Public-Eval/CLI-Tests: `test_public_nis2_fixtures.py`,
   `test_cli_triage.py`, `test_cli_eval.py`, `test_report_schema.py`
+- Paid-Pilot-Hardening-Tests: `test_audit_ledger.py`,
+  `test_adversarial_fixtures.py`, `test_report_handover.py`,
+  `test_public_real_docs_manifest.py`, `test_pilot_readiness_check.py`
 
 ## Bekannte Gotchas
 
@@ -240,15 +251,18 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | MVP1 Schritt 1 (Infrastruktur + Core Parser) | OK | 2026-06-27 |
 | MVP1 Schritt 2 (PDF-Handler + Integration) | OK | 2026-06-27 |
 | MVP1 Schritt 3 (Classifier + Pipeline-Integration) | OK | 2026-06-27 |
-| Tests | 167/167 gruen, 17 subtests | 2026-06-27 |
-| Public Eval | PILOT_READY: 12/12 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-27 |
-| Fixture Safety | `python scripts/check_public_fixtures.py` gruen (13 Dateien) | 2026-06-27 |
+| Paid-Pilot Hardening (Audit, Handover, Readiness) | OK | 2026-06-28 |
+| Tests | 176/176 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
+| Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
+| Fixture Safety | `python scripts/check_public_fixtures.py` gruen (18 Dateien) | 2026-06-28 |
+| Real Public Source URL Check | `AETHELGARD_RUN_NETWORK_TESTS=1 pytest tests/test_public_real_docs_manifest.py -q` gruen (CISA 403 als bekannter Automation-Block erlaubt) | 2026-06-28 |
+| Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_READY_PAID_CONTROLLED` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
-| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-27 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen | 2026-06-27 |
-| Git init | nicht vorhanden (auf User-Freigabe warten) | offen |
+| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-28 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen | 2026-06-28 |
+| Git init | vorhanden, Branch `main`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)
 
-- Ein owner-approved nicht-sensitives Beispielpaket durch `triage` laufen lassen
-- Human-review-Checkliste fuer Pilot-Auswertung ergaenzen
+- Ein owner-approved nicht-sensitives Beispielpaket durch `triage --audit` laufen lassen
+- Human-review-Checkliste in einem echten Friendly-/Paid-Pilot-Handover anwenden

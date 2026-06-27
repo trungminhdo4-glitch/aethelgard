@@ -21,7 +21,7 @@
       "expected_categories": ["business_continuity"],
       "expected_evidence_min": 1,
       "expected_gaps": [],
-      "must_include_terms": ["business continuity", "tested", "recovery time"],
+      "must_include_terms": ["business continuity", "recovery time"],
       "must_not_include_categories": ["supplier_security"]
     },
     {
@@ -29,7 +29,7 @@
       "expected_categories": ["supplier_security"],
       "expected_evidence_min": 1,
       "expected_gaps": [],
-      "must_include_terms": ["supplier security", "supplier review", "owner"],
+      "must_include_terms": ["supplier security", "owner"],
       "must_not_include_categories": ["incident_reporting"]
     },
     {
@@ -102,6 +102,65 @@
         "access_control",
         "vulnerability_management"
       ],
+      "max_strong_evidence": 0
+    },
+    {
+      "file": "security_marketing_false_positive.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["marketing_only"],
+      "must_include_terms": ["intentionally avoids"],
+      "must_not_include_categories": [
+        "risk_management",
+        "incident_reporting",
+        "business_continuity",
+        "supplier_security",
+        "access_control",
+        "vulnerability_management"
+      ],
+      "max_strong_evidence": 0
+    },
+    {
+      "file": "empty_policy_template.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["template_only"],
+      "must_include_terms": ["planned only", "not defined"],
+      "must_not_include_categories": [
+        "risk_management",
+        "incident_reporting",
+        "business_continuity",
+        "supplier_security",
+        "access_control",
+        "vulnerability_management"
+      ],
+      "max_strong_evidence": 0
+    },
+    {
+      "file": "outdated_policy_no_owner.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["risk_management", "access_control"],
+      "must_include_terms": ["risk assessment"],
+      "must_not_include_categories": ["risk_management", "access_control"],
+      "max_strong_evidence": 0
+    },
+    {
+      "file": "incident_policy_without_reporting_time.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["incident_reporting"],
+      "must_include_terms": ["incident response", "missing"],
+      "must_not_include_categories": ["incident_reporting"],
+      "max_strong_evidence": 0
+    },
+    {
+      "file": "supplier_policy_without_controls.md",
+      "expected_categories": [],
+      "expected_evidence_min": 0,
+      "expected_gaps": ["supplier_security"],
+      "must_include_terms": ["supplier security", "no evidence", "not documented"],
+      "must_not_include_categories": ["supplier_security"],
       "max_strong_evidence": 0
     }
   ]

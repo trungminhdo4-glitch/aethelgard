@@ -1,54 +1,80 @@
 # AethelGard Evidence Triage Pilot
 
+## Product Name
+
+AethelGard Evidence Triage Pilot
+
 ## Target Customer
 
-Small security consultancies, IT compliance advisors, and managed service providers that
-help SMEs prepare NIS-2 or supplier-security documentation.
+Small MSPs, security consultancies, IT compliance advisors, and NIS-2-affected SMEs that
+need a faster first pass over security and supplier documentation.
 
 ## Problem
 
-Teams spend too much time manually scanning policies, supplier documents, and security
-procedures to find usable evidence and obvious gaps.
+Teams spend expensive expert time opening policies, questionnaires, and procedures just
+to find whether useful evidence exists and where obvious gaps remain.
 
-## Pilot Offer
+## What AethelGard Does
 
-AethelGard supports fast local pre-review of Security/NIS-2 documents through evidence
-triage. It does not replace legal advice, an audit, or a final compliance assessment.
+- Runs locally on approved non-sensitive documents.
+- Extracts bounded evidence snippets.
+- Groups findings by categories such as risk management, incident reporting, supplier
+  security, continuity, access control, and vulnerability management.
+- Flags likely gaps and false-positive risks for human review.
+- Produces JSON and Markdown handover reports.
 
-## 7-Day Delivery
+## What AethelGard Does Not Do
 
-- Configure the local triage profile for one document set.
-- Run synthetic/demo evaluation to establish tool behavior.
-- Run on customer-approved non-sensitive sample documents if provided.
-- Deliver JSON and Markdown evidence reports.
+- No legal advice.
+- No audit opinion.
+- No certification or NIS-2 compliance guarantee.
+- No SaaS or multi-tenant processing in MVP1.
+- No external API calls or cloud model upload.
+- No processing of secrets, credentials, raw logs, or production incident data.
 
-## 14-Day Delivery
+## 7-Day Pilot
+
+- Validate install and synthetic evaluation.
+- Process one non-sensitive sample pack.
+- Deliver evidence/gap report.
+- Review false positives and obvious gaps with the customer.
+
+## 14-Day Pilot
 
 - Add a small customer-specific keyword/category map.
-- Review false positives and false negatives with the customer.
-- Produce a short readiness note with remaining manual-review steps.
+- Run a second review iteration.
+- Produce handover notes and manual next checks.
+- Confirm deletion or agreed retention.
 
-## Not Included
+## Needed Data
 
-- Legal advice.
-- Certification or audit sign-off.
-- Cloud/SaaS hosting.
-- Processing of secrets, credentials, private logs, or production datasets.
+- 3 to 10 non-sensitive files.
+- Suitable formats: `.txt`, `.md`, `.pdf`.
+- Preferred documents: risk, incident, supplier, access-control, continuity, and
+  vulnerability-management policies or questionnaires.
 
-## Data Requirements
+## Data Protection Boundaries
 
-Use synthetic, public, or explicitly approved sample documents. Remove personal data,
-credentials, secrets, private logs, and customer production records before sharing.
+- Customer removes secrets, credentials, personal data where avoidable, production URLs,
+  raw logs, private databases, and incident details naming real affected parties.
+- Processing is local.
+- Reports go to an ignored local `reports/` folder.
+- Deletion confirmation is available after handover.
 
 ## Success Criteria
 
-- All sample files processed locally.
-- Evidence report contains traceable citations.
+- All approved sample files are processed or failures are explained.
+- Human reviewer can trace each accepted item to a bounded snippet.
 - False positives and false negatives are visible.
-- Customer can decide whether the workflow saves manual review time.
+- Customer can judge whether the workflow saves manual review time.
 
-## Price Idea
+## Price Options
 
-- Friendly unpaid pilot: 0 EUR for reference feedback.
-- Low-cost paid pilot: 500-1,500 EUR.
-- Normal 14-day pilot: 2,500-5,000 EUR.
+- Friendly Pilot: 0 EUR for reference feedback.
+- Starter Pilot: 500-1,500 EUR.
+- Standard Pilot: 2,500-5,000 EUR.
+
+## Handover Result
+
+The customer receives a JSON/Markdown evidence triage report, run summary, optional
+audit-ledger metadata, human-review notes, and a short list of recommended manual checks.

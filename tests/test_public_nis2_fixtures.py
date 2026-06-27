@@ -18,7 +18,7 @@ def test_public_fixture_count_and_labels_match() -> None:
     labels = json.loads(LABELS_PATH.read_text(encoding="utf-8"))
     labeled_files = sorted(document["file"] for document in labels["documents"])
 
-    assert len(fixture_files) == 12
+    assert len(fixture_files) == 17
     assert fixture_files == labeled_files
 
 
@@ -42,8 +42,8 @@ def test_all_public_fixtures_parse_without_errors() -> None:
     result = run_triage(FIXTURE_DIR)
     report = result["report"]
 
-    assert report["document_count"] == 12
-    assert report["parsed_count"] == 12
+    assert report["document_count"] == 17
+    assert report["parsed_count"] == 17
     assert report["failed_count"] == 0
 
 

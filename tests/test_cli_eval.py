@@ -34,7 +34,7 @@ def test_eval_cli_writes_reports_and_passes_thresholds(tmp_path: Path) -> None:
     markdown = (out_dir / EVAL_MD_NAME).read_text(encoding="utf-8")
 
     assert report["status"] == "PILOT_READY"
-    assert report["documents_total"] == 12
+    assert report["documents_total"] == 17
     assert report["parser_failures"] == 0
     assert report["category_hits"]["rate"] >= report["thresholds"]["min_category_hit_rate"]
     assert report["threshold_status"]["marketing_false_positive"] is True

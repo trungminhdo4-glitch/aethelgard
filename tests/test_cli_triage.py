@@ -24,8 +24,8 @@ def test_triage_cli_writes_reports(tmp_path: Path) -> None:
     summary = json.loads((out_dir / RUN_SUMMARY_NAME).read_text(encoding="utf-8"))
     markdown = (out_dir / REPORT_MD_NAME).read_text(encoding="utf-8")
 
-    assert report["document_count"] == 12
-    assert report["parsed_count"] == 12
+    assert report["document_count"] == 17
+    assert report["parsed_count"] == 17
     assert report["failed_count"] == 0
     assert report["evidence_count"] > 0
     assert summary["exit_code"] == 0
