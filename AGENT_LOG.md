@@ -31,3 +31,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Outreach-Paket mit Readiness-Doku, ICP-Scoring, Target-Template, E-Mail-Varianten, Follow-ups, Objection Handling, Call-Pack und Dokument-Gate |
 | Commit | - |
 | Ergebnis | OK: `compileall`, `pytest` (190 passed, 1 skipped opt-in network, 17 subtests), `check_public_fixtures.py`, `check_pilot_readiness.py`, `ruff`, `mypy`, Customer-like Demo/Eval und Outreach-Dokumenttest gruen; kein Push, keine echten Leads, keine privaten Kontakte, keine Secrets |
+
+### 2026-06-28 03:20 - Berlin target research
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Berlin/Brandenburg Outreach-Zielliste mit oeffentlichen Firmenquellen, Top-5-Priorisierung, Snippets, Owner-Checkliste und Dokument-Safety-Test |
+| Commit | - |
+| Ergebnis | OK: `compileall`, `pytest` (197 passed, 1 skipped opt-in network, 17 subtests), `check_public_fixtures.py`, `check_pilot_readiness.py`, `ruff`, `mypy`, Berlin-Research-Dokumenttest und `git diff --check` gruen; kein Push, keine personenbezogenen Leads, keine privaten Kontakte, keine LinkedIn-/Xing-Scrapes |
