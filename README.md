@@ -17,6 +17,7 @@ human pre-review of security documentation through local evidence triage.
 - Source-backed NIS-2 Article 21(2) control coverage matrix in triage reports.
 - Public synthetic NIS-2 fixture corpus with golden labels.
 - Demo CLI for JSON/Markdown evidence reports.
+- Pilot-run CLI with masked preflight reports and human-review CSV export.
 - Evaluation CLI with pilot-readiness thresholds.
 - Calibration reports with proxy quality indicators for synthetic fixture packs.
 - Optional metadata-only audit ledger for CLI runs.
@@ -64,6 +65,24 @@ Current synthetic demo summary:
 - Article 21(2) control topics: 10 mapped reporting topics
 - exit code: 0
 
+## Pilot Run Command
+
+```powershell
+python -m aethelgard.cli pilot-run --input tests/fixtures/customer_like_nis2 --out reports/pilot-demo --audit
+```
+
+Outputs:
+
+- `reports/pilot-demo/preflight_report.json`
+- `reports/pilot-demo/preflight_report.md`
+- `reports/pilot-demo/evidence_report.json`
+- `reports/pilot-demo/evidence_report.md`
+- `reports/pilot-demo/run_summary.json`
+- `reports/pilot-demo/review_items.csv`
+
+Use `--fail-on-sensitive` to block medium sensitive markers such as e-mail addresses
+and phone numbers. Use `--no-preflight` only for explicitly safe synthetic/demo runs.
+
 ## Evaluation Command
 
 ```powershell
@@ -100,6 +119,7 @@ Exit codes:
 - `0`: command succeeded; evaluation also meets thresholds for `eval`.
 - `1`: technical failure.
 - `2`: evaluation completed but did not meet pilot-readiness thresholds.
+- `3`: pilot-run preflight blocked sensitive input before triage.
 
 ## Readiness Command
 

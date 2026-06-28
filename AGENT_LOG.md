@@ -55,3 +55,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | First-Wave-Firmenverifikation, sendefertige Drafts, Outreach-Tracker, Response-/Demo-/Qualification-Runbooks und Safety-Tests |
 | Commit | - |
 | Ergebnis | DRAFT_READY_BLOCKED_BY_SENDER: Preflight gruen, drei Firmen auf Firmenebene verifiziert, kein Versand ohne freigegebenes Absenderkonto/OWNER_NAME; keine privaten Kontakte, keine LinkedIn-/Xing-Recherche, keine Anhaenge, keine Secrets |
+
+### 2026-06-28 22:48 - Safe pilot-run flow
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Redaction-Preflight, `pilot-run` CLI, Review-CSV, Demo-Bundle und Tests |
+| Commit | - |
+| Ergebnis | OK: `compileall`, `pytest` (219 passed, 1 skipped), `ruff`, `mypy`, Fixture-Safety, Pilot-Readiness und `pilot-run` Demo gruen; kein Outreach, keine externen APIs, keine echten Kundendaten, keine Secrets |

@@ -3,11 +3,31 @@
 from __future__ import annotations
 
 import argparse
+import csv
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Final, cast
 
 from aethelgard.audit import append_audit_entry, build_audit_entry
+from aethelgard.redaction_preflight import (
+    build_skipped_preflight_report,
+    run_redaction_preflight,
+    write_preflight_reports,
+)
 from aethelgard.triage import run_eval, run_triage
+
+REVIEW_CSV_NAME: Final[str] = "review_items.csv"
+PREFLIGHT_BLOCK_EXIT_CODE: Final[int] = 3
+REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = (
+    "category",
+    "control_area",
+    "document",
+    "evidence_level",
+    "status",
+    "finding",
+    "recommended_manual_check",
+    "source_reference",
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,6 +56,28 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Append run metadata to reports/audit/aethelgard_runs.jsonl.",
     )
+
+    pilot_parser = subparsers.add_parser(
+        "pilot-run",
+        help="Run preflight, triage, and review CSV export for demo/pilot preparation.",
+    )
+    pilot_parser.add_argument("--input", required=True, type=Path, help="Input file or directory.")
+    pilot_parser.add_argument("--out", required=True, type=Path, help="Output directory.")
+    pilot_parser.add_argument(
+        "--audit",
+        action="store_true",
+        help="Append run metadata to reports/audit/aethelgard_runs.jsonl.",
+    )
+    pilot_parser.add_argument(
+        "--fail-on-sensitive",
+        action="store_true",
+        help="Block medium sensitive findings such as e-mail addresses and phone numbers.",
+    )
+    pilot_parser.add_argument(
+        "--no-preflight",
+        action="store_true",
+        help="Skip redaction preflight and write an explicit skipped preflight report.",
+    )
     return parser
 
 
@@ -56,8 +98,36 @@ def main(argv: list[str] | None = None) -> int:
             _append_eval_audit(args.fixtures, args.out, report)
         return 0 if report["status"] == "PILOT_READY" else 2
 
+    if args.command == "pilot-run":
+        return _run_pilot(args)
+
     parser.error("unknown command: %s" % args.command)
     return 1
+
+
+def _run_pilot(args: argparse.Namespace) -> int:
+    input_path = cast(Path, args.input)
+    output_path = cast(Path, args.out)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    if bool(args.no_preflight):
+        preflight_report = build_skipped_preflight_report()
+    else:
+        preflight_report = run_redaction_preflight(
+            input_path,
+            fail_on_sensitive=bool(args.fail_on_sensitive),
+        )
+    write_preflight_reports(output_path, preflight_report)
+
+    if preflight_report["status"] == "block":
+        return PREFLIGHT_BLOCK_EXIT_CODE
+
+    result = run_triage(input_path, output_path)
+    report = cast(dict[str, Any], result["report"])
+    _write_review_items_csv(output_path / REVIEW_CSV_NAME, report)
+    if args.audit:
+        _append_triage_audit(input_path, output_path, result)
+    return int(result["summary"]["exit_code"])
 
 
 def _append_triage_audit(
@@ -103,6 +173,60 @@ def _append_eval_audit(
         errors=[],
     )
     append_audit_entry(entry)
+
+
+def _write_review_items_csv(path: Path, report: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=list(REVIEW_CSV_COLUMNS), lineterminator="\n")
+        writer.writeheader()
+        for row in _build_review_rows(report):
+            writer.writerow(row)
+
+
+def _build_review_rows(report: Mapping[str, Any]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    documents = cast(Sequence[Mapping[str, Any]], report["per_document"])
+    for document in documents:
+        document_name = str(document["file"])
+        evidence_items = cast(Sequence[Mapping[str, Any]], document["evidence"])
+        for item_index, item in enumerate(evidence_items, start=1):
+            category = str(item["category"])
+            quality = str(item["quality"])
+            signals = [str(signal) for signal in cast(Sequence[object], item["quality_signals"])]
+            rows.append(
+                {
+                    "category": category,
+                    "control_area": _humanize_category(category),
+                    "document": document_name,
+                    "evidence_level": quality,
+                    "status": _review_status(quality),
+                    "finding": str(item["source_citation"]),
+                    "recommended_manual_check": _manual_check_for_item(quality, signals),
+                    "source_reference": "%s#evidence-%d" % (document_name, item_index),
+                }
+            )
+    return rows
+
+
+def _humanize_category(category: str) -> str:
+    return category.replace("_", " ")
+
+
+def _review_status(quality: str) -> str:
+    if quality == "strong":
+        return "candidate_evidence"
+    if quality == "warning":
+        return "warning_review"
+    return "manual_review"
+
+
+def _manual_check_for_item(quality: str, signals: Sequence[str]) -> str:
+    if signals:
+        return "Review quality signals: %s." % ", ".join(signals[:4])
+    if quality == "strong":
+        return "Confirm implemented control, owner, review cadence, and evidence freshness."
+    return "Confirm whether this is real control evidence or only weak wording."
 
 
 if __name__ == "__main__":

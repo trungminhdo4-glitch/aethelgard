@@ -54,8 +54,9 @@ src/aethelgard/
     pdf_handler.py         # PDF Page-Streaming (optional pypdf)
     classifier.py          # Klassifikations-Engine (deterministische Heuristik)
   audit.py                 # Append-only JSONL Run-Ledger (Metadaten, keine Inhalte)
-  cli.py                   # CLI: triage + eval
+  cli.py                   # CLI: triage + eval + pilot-run
   public_sources.py        # Pure URL-Check-Klassifikation fuer offizielle Quellen
+  redaction_preflight.py   # Lokaler Sensitive-Content-Preflight mit Maskierung
   triage.py                # Report-, Quality-, Calibration- und Evaluations-Engine
 README.md                  # Nutzer-Quickstart und Produktkern
 docs/
@@ -211,8 +212,9 @@ from aethelgard.mvp1 import (
   `TestParseAndClassify` (11 Tests: Text- und PDF-Pipeline, File-Validation,
   Iterator-Laziness, Requirement-Map, Empty-Input)
 - Public-Eval/CLI-Tests: `test_public_nis2_fixtures.py`,
-  `test_cli_triage.py`, `test_cli_eval.py`, `test_report_schema.py`,
-  `test_nis2_control_coverage.py`
+  `test_cli_triage.py`, `test_cli_eval.py`, `test_cli_pilot_run.py`,
+  `test_report_schema.py`, `test_nis2_control_coverage.py`,
+  `test_redaction_preflight.py`
 - Paid-Pilot-Hardening-Tests: `test_audit_ledger.py`,
   `test_adversarial_fixtures.py`, `test_report_handover.py`,
   `test_public_real_docs_manifest.py`, `test_pilot_readiness_check.py`
@@ -283,7 +285,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Outreach Preparation (Docs, ICP, Follow-up, Objections, Call Pack) | OUTREACH_READY_WITH_OWNER_GATE | 2026-06-28 |
 | NIS2 Article 21 Coverage | OK: 10 Artikel-21(2)-Themen als Coverage-Matrix, keine Legal-/Audit-Claims | 2026-06-28 |
 | Controlled First Outreach Wave | DRAFT_READY_BLOCKED_BY_SENDER: 3 Firmen verifiziert, Drafts/Tracker/Runbooks erstellt, kein Versand ohne Absenderkonto | 2026-06-28 |
-| Tests | 207/207 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
+| Pilot Run Flow | OK: redaction preflight, `pilot-run`, Demo-Bundle und `review_items.csv`; `reports/pilot-demo`: 8/8 Dokumente, 57 Evidenzen, Preflight `pass` | 2026-06-28 |
+| Tests | 219/219 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
@@ -292,7 +295,7 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
 | Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-28 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (11 Source-Dateien) | 2026-06-28 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (12 Source-Dateien) | 2026-06-28 |
 | Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)
