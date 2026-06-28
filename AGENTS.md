@@ -46,6 +46,7 @@ Auf diesem Workspace laeuft Python 3.12.6 mit pydantic 2.13.4 — kompatibel.
 ```
 src/aethelgard/
   __init__.py              # Package-Marker, __version__
+  nis2_controls.py         # NIS2 Artikel-21(2)-Coverage-Referenzen + Report-Matrix
   mvp1/
     __init__.py            # Public API Re-Exports (Schemas + Parser + PDF + Classifier)
     schemas.py             # pydantic v2 Schemas (ComplianceEvidence)
@@ -188,7 +189,7 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **176 Unit-Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
+- **200 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
 - Externe IO (Dateisystem, pypdf) zu 100 % gemockt via `unittest.mock`
 - AAA-Pattern (Arrange, Act, Assert)
 - Test-Klassen (document_parser): `TestComplianceEvidenceSchema`,
@@ -209,7 +210,8 @@ from aethelgard.mvp1 import (
   `TestParseAndClassify` (11 Tests: Text- und PDF-Pipeline, File-Validation,
   Iterator-Laziness, Requirement-Map, Empty-Input)
 - Public-Eval/CLI-Tests: `test_public_nis2_fixtures.py`,
-  `test_cli_triage.py`, `test_cli_eval.py`, `test_report_schema.py`
+  `test_cli_triage.py`, `test_cli_eval.py`, `test_report_schema.py`,
+  `test_nis2_control_coverage.py`
 - Paid-Pilot-Hardening-Tests: `test_audit_ledger.py`,
   `test_adversarial_fixtures.py`, `test_report_handover.py`,
   `test_public_real_docs_manifest.py`, `test_pilot_readiness_check.py`
@@ -217,6 +219,8 @@ from aethelgard.mvp1 import (
   `test_calibration_report.py`, `test_public_url_check.py`
 - Outreach-Prep-Tests: `test_outreach_docs.py` prueft Pflichtdateien, Disclaimer,
   Sample-Pack-Verbote, company-level Target-Template, Go/No-Go und enge Claims.
+- Berlin-Research-Tests: `test_berlin_target_research_docs.py` prueft
+  company-level Kontaktwege, keine LinkedIn-/Xing-Quellen, Owner-Gate und enge Claims.
 
 ## Bekannte Gotchas
 
@@ -273,7 +277,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Paid-Pilot Hardening (Audit, Handover, Readiness) | OK | 2026-06-28 |
 | Paid Pilot Ops Readiness (Customer-like Pack, Calibration, Demo/Legal/Backup) | OK | 2026-06-28 |
 | Outreach Preparation (Docs, ICP, Follow-up, Objections, Call Pack) | OUTREACH_READY_WITH_OWNER_GATE | 2026-06-28 |
-| Tests | 190/190 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
+| NIS2 Article 21 Coverage | OK: 10 Artikel-21(2)-Themen als Coverage-Matrix, keine Legal-/Audit-Claims | 2026-06-28 |
+| Tests | 200/200 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
@@ -282,9 +287,10 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
 | Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-28 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen | 2026-06-28 |
-| Git init | vorhanden, Branch `main`, kein Push ausgefuehrt | 2026-06-28 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (11 Source-Dateien) | 2026-06-28 |
+| Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)
 
 - Owner waehlt manuell 3-5 Zielunternehmen aus und nutzt die MSP/Security-Beratung-E-Mail mit engem Claim fuer eine 15-Minuten-Demo-Anfrage.
+- Naechster Produkthebel: Demo-Report mit NIS2-Control-Coverage an synthetischen oder explizit owner-freigegebenen redacted Dokumenten zeigen.

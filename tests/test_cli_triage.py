@@ -28,6 +28,8 @@ def test_triage_cli_writes_reports(tmp_path: Path) -> None:
     assert report["parsed_count"] == 17
     assert report["failed_count"] == 0
     assert report["evidence_count"] > 0
+    assert report["control_coverage"]["controls_total"] == 10
     assert summary["exit_code"] == 0
+    assert "NIS2 Control Coverage" in markdown
     assert "Human review required" in markdown
     assert "does not provide legal advice" in markdown

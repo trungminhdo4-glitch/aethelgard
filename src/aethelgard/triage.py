@@ -21,6 +21,7 @@ from aethelgard.mvp1 import (
     ComplianceEvidence,
     LocalDocumentParser,
 )
+from aethelgard.nis2_controls import build_control_coverage
 
 REPORT_JSON_NAME: Final[str] = "evidence_report.json"
 REPORT_MD_NAME: Final[str] = "evidence_report.md"
@@ -83,6 +84,55 @@ CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
         "security patch",
         "remediation timeline",
         "vulnerability scan",
+    ),
+    "secure_development": (
+        "secure development",
+        "secure maintenance",
+        "secure acquisition",
+        "vulnerability disclosure",
+        "change control",
+        "software security",
+    ),
+    "control_effectiveness": (
+        "control effectiveness",
+        "effectiveness review",
+        "control testing",
+        "security metrics",
+        "control assessment",
+        "wirksamkeitspruefung",
+    ),
+    "cyber_hygiene_training": (
+        "cyber hygiene",
+        "cybersecurity training",
+        "security awareness",
+        "awareness training",
+        "phishing training",
+        "sicherheitsschulung",
+    ),
+    "cryptography_encryption": (
+        "cryptography",
+        "encryption",
+        "encryption policy",
+        "key management",
+        "verschluesselung",
+        "kryptographie",
+    ),
+    "asset_management": (
+        "asset management",
+        "asset inventory",
+        "asset register",
+        "device inventory",
+        "inventory review",
+        "inventarisierung",
+    ),
+    "secure_auth_communications": (
+        "strong authentication",
+        "continuous authentication",
+        "secure communications",
+        "secured communications",
+        "emergency communication",
+        "secure voice",
+        "secure text",
     ),
 }
 
@@ -204,6 +254,55 @@ SUPPLIER_CONTROL_TERMS: Final[tuple[str, ...]] = (
     "review",
     "security requirements",
 )
+SECURE_DEVELOPMENT_TERMS: Final[tuple[str, ...]] = (
+    "change control",
+    "secure acquisition",
+    "secure development",
+    "secure maintenance",
+    "software security",
+    "vulnerability disclosure",
+)
+CONTROL_EFFECTIVENESS_TERMS: Final[tuple[str, ...]] = (
+    "control assessment",
+    "control effectiveness",
+    "control testing",
+    "effectiveness review",
+    "security metrics",
+    "wirksamkeitspruefung",
+)
+CYBER_HYGIENE_TRAINING_TERMS: Final[tuple[str, ...]] = (
+    "awareness training",
+    "cyber hygiene",
+    "cybersecurity training",
+    "phishing training",
+    "security awareness",
+    "sicherheitsschulung",
+)
+CRYPTOGRAPHY_TERMS: Final[tuple[str, ...]] = (
+    "cryptography",
+    "encryption",
+    "encryption policy",
+    "key management",
+    "kryptographie",
+    "verschluesselung",
+)
+ASSET_MANAGEMENT_TERMS: Final[tuple[str, ...]] = (
+    "asset inventory",
+    "asset management",
+    "asset register",
+    "device inventory",
+    "inventory review",
+    "inventarisierung",
+)
+SECURE_AUTH_COMMUNICATION_TERMS: Final[tuple[str, ...]] = (
+    "continuous authentication",
+    "emergency communication",
+    "secure communications",
+    "secure text",
+    "secure voice",
+    "secured communications",
+    "strong authentication",
+)
 
 DISCLAIMER: Final[str] = (
     "This report is an automated evidence triage aid. It is not legal advice, "
@@ -286,6 +385,7 @@ def run_triage(input_path: Path | str, out_dir: Path | str | None = None) -> dic
         documents.append(document_result)
 
     elapsed_seconds = round(time.perf_counter() - start, 6)
+    control_coverage = build_control_coverage(documents)
     report = {
         "run_id": _build_run_id("triage"),
         "timestamp": datetime.now(UTC).isoformat(),
@@ -295,6 +395,7 @@ def run_triage(input_path: Path | str, out_dir: Path | str | None = None) -> dic
         "failed_count": len(errors),
         "evidence_count": evidence_count,
         "categories": categories,
+        "control_coverage": control_coverage,
         "per_document": documents,
         "warnings": warnings,
         "errors": errors,
@@ -599,6 +700,34 @@ def render_triage_markdown(report: Mapping[str, Any]) -> str:
     for category, count in report["categories"].items():
         lines.append("- `%s`: %d" % (category, count))
 
+    coverage = cast(Mapping[str, Any], report["control_coverage"])
+    controls = cast(Sequence[Mapping[str, Any]], coverage["controls"])
+    lines.extend(
+        [
+            "",
+            "## NIS2 Control Coverage",
+            "- Reference basis: `%s`" % coverage["reference_basis"],
+            "- Source: %s" % coverage["source_url"],
+            "- Coverage note: %s" % coverage["coverage_note"],
+            "",
+            "| Article 21 topic | Status | Strong categories | Evidence count |",
+            "|---|---|---|---:|",
+        ]
+    )
+    for control in controls:
+        strong_categories = cast(Sequence[str], control["strong_categories"])
+        category_label = ", ".join(str(category) for category in strong_categories) or "-"
+        lines.append(
+            "| %s `%s` | `%s` | `%s` | %d |"
+            % (
+                control["article_reference"],
+                control["title"],
+                control["status"],
+                category_label,
+                control["evidence_count"],
+            )
+        )
+
     lines.extend(["", "## Potential Gaps"])
     if report["warnings"]:
         lines.extend("- %s" % warning for warning in report["warnings"])
@@ -876,6 +1005,28 @@ def _detect_concrete_features(category: str, text: str) -> list[str]:
         features.append("timeline")
     if category == "supplier_security" and any(term in text for term in SUPPLIER_CONTROL_TERMS):
         features.append("supplier_control")
+    if category == "secure_development" and any(
+        term in text for term in SECURE_DEVELOPMENT_TERMS
+    ):
+        features.append("secure_development")
+    if category == "control_effectiveness" and any(
+        term in text for term in CONTROL_EFFECTIVENESS_TERMS
+    ):
+        features.append("control_effectiveness")
+    if category == "cyber_hygiene_training" and any(
+        term in text for term in CYBER_HYGIENE_TRAINING_TERMS
+    ):
+        features.append("training")
+    if category == "cryptography_encryption" and any(
+        term in text for term in CRYPTOGRAPHY_TERMS
+    ):
+        features.append("cryptography")
+    if category == "asset_management" and any(term in text for term in ASSET_MANAGEMENT_TERMS):
+        features.append("asset_inventory")
+    if category == "secure_auth_communications" and any(
+        term in text for term in SECURE_AUTH_COMMUNICATION_TERMS
+    ):
+        features.append("secure_authentication_or_communication")
     return features
 
 

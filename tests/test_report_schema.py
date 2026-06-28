@@ -22,6 +22,7 @@ def test_triage_report_required_fields() -> None:
         "failed_count",
         "evidence_count",
         "categories",
+        "control_coverage",
         "per_document",
         "warnings",
         "errors",
@@ -31,6 +32,8 @@ def test_triage_report_required_fields() -> None:
     assert required.issubset(report)
     assert isinstance(report["per_document"], list)
     assert report["per_document"]
+    assert report["control_coverage"]["controls_total"] == 10
+    assert report["control_coverage"]["source_url"].startswith("https://eur-lex.europa.eu/")
 
 
 def test_triage_per_document_required_fields() -> None:

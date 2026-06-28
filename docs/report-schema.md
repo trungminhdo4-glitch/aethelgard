@@ -20,6 +20,7 @@ Required top-level fields:
 - `failed_count`
 - `evidence_count`
 - `categories`
+- `control_coverage`
 - `per_document`
 - `warnings`
 - `errors`
@@ -42,6 +43,17 @@ Strong evidence means the item is compliant, has `confidence_score >= 0.7`, has 
 concrete quality features, and has no hard negative quality signal.
 Evidence citations in reports are bounded snippets, capped at 280 characters.
 
+`control_coverage` maps report metadata to 10 NIS-2 Article 21(2) topic references from
+Directive (EU) 2022/2555. It includes `reference_basis`, `source_url`, `coverage_note`,
+`controls_total`, `status_counts`, and one item per Article 21(2)(a)-(j) topic. Status values:
+
+- `strong_evidence`: at least one linked category has strong evidence in a document.
+- `needs_review`: linked evidence exists, but no linked category is strong.
+- `no_evidence`: no linked category was detected.
+
+The coverage matrix is a review aid only. It is not legal advice, not an audit opinion,
+and not a NIS-2 compliance decision.
+
 Each evidence item includes:
 
 - `quality`: `strong`, `medium`, `weak`, or `warning`
@@ -57,6 +69,7 @@ Markdown report sections:
 - Executive Summary
 - Documents Processed
 - Evidence by Category
+- NIS2 Control Coverage
 - Potential Gaps
 - Items Requiring Human Review
 - False Positive Watchlist

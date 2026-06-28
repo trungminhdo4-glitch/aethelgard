@@ -39,3 +39,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Berlin/Brandenburg Outreach-Zielliste mit oeffentlichen Firmenquellen, Top-5-Priorisierung, Snippets, Owner-Checkliste und Dokument-Safety-Test |
 | Commit | - |
 | Ergebnis | OK: `compileall`, `pytest` (197 passed, 1 skipped opt-in network, 17 subtests), `check_public_fixtures.py`, `check_pilot_readiness.py`, `ruff`, `mypy`, Berlin-Research-Dokumenttest und `git diff --check` gruen; kein Push, keine personenbezogenen Leads, keine privaten Kontakte, keine LinkedIn-/Xing-Scrapes |
+
+### 2026-06-28 04:05 - NIS2 control coverage
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | NIS2 Artikel-21(2)-Coverage-Matrix, erweiterte Evidence-Kategorien, Report-Schema, Tests und Doku |
+| Commit | - |
+| Ergebnis | OK: `compileall`, `pytest` (200 passed, 1 skipped opt-in network, 17 subtests), `check_public_fixtures.py`, `check_pilot_readiness.py`, `ruff`, `mypy` und `git diff --check` gruen; kein Outreach-Versand, kein Push, keine personenbezogenen Leads, keine Secrets |

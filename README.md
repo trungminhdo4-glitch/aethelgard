@@ -14,6 +14,7 @@ human pre-review of security documentation through local evidence triage.
 - Optional PDF page streaming through `pypdf`.
 - Lazy chunk extraction with generator-based APIs.
 - Deterministic heuristic classification with no external model calls.
+- Source-backed NIS-2 Article 21(2) control coverage matrix in triage reports.
 - Public synthetic NIS-2 fixture corpus with golden labels.
 - Demo CLI for JSON/Markdown evidence reports.
 - Evaluation CLI with pilot-readiness thresholds.
@@ -60,6 +61,7 @@ Current synthetic demo summary:
 - documents parsed: 17
 - parser failures: 0
 - evidence items: generated from positive, gap, and adversarial fixtures
+- Article 21(2) control topics: 10 mapped reporting topics
 - exit code: 0
 
 ## Evaluation Command
