@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final, cast
@@ -14,11 +15,14 @@ from aethelgard.redaction_preflight import (
     run_redaction_preflight,
     write_preflight_reports,
 )
+from aethelgard.review import ReviewApplyError, apply_review_csv
 from aethelgard.triage import run_eval, run_triage
 
 REVIEW_CSV_NAME: Final[str] = "review_items.csv"
 PREFLIGHT_BLOCK_EXIT_CODE: Final[int] = 3
+REVIEW_APPLY_ERROR_EXIT_CODE: Final[int] = 4
 REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = (
+    "finding_id",
     "category",
     "control_area",
     "document",
@@ -27,6 +31,10 @@ REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = (
     "finding",
     "recommended_manual_check",
     "source_reference",
+    "review_status",
+    "review_note",
+    "reviewer",
+    "reviewed_at",
 )
 
 
@@ -78,6 +86,19 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip redaction preflight and write an explicit skipped preflight report.",
     )
+
+    review_parser = subparsers.add_parser(
+        "review-apply",
+        help="Apply human review CSV data to an evidence report.",
+    )
+    review_parser.add_argument("--report", required=True, type=Path, help="Evidence report JSON.")
+    review_parser.add_argument("--review-csv", required=True, type=Path, help="Review CSV file.")
+    review_parser.add_argument("--out", required=True, type=Path, help="Output directory.")
+    review_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail on unknown review statuses or unknown finding IDs.",
+    )
     return parser
 
 
@@ -100,6 +121,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "pilot-run":
         return _run_pilot(args)
+
+    if args.command == "review-apply":
+        return _run_review_apply(args)
 
     parser.error("unknown command: %s" % args.command)
     return 1
@@ -128,6 +152,31 @@ def _run_pilot(args: argparse.Namespace) -> int:
     if args.audit:
         _append_triage_audit(input_path, output_path, result)
     return int(result["summary"]["exit_code"])
+
+
+def _run_review_apply(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        apply_review_csv(
+            cast(Path, args.report),
+            cast(Path, args.review_csv),
+            output_path,
+            strict=bool(args.strict),
+        )
+    except ReviewApplyError as exc:
+        print("review-apply failed: %s" % exc, file=sys.stderr)
+        return REVIEW_APPLY_ERROR_EXIT_CODE
+    return 0
+
+
+def _resolve_output_path(path: Path) -> Path:
+    resolved = Path(path).resolve()
+    safe_base = Path.cwd().resolve()
+    try:
+        resolved.relative_to(safe_base)
+    except ValueError as exc:
+        raise ReviewApplyError("--out must stay inside the current project folder") from exc
+    return resolved
 
 
 def _append_triage_audit(
@@ -196,14 +245,26 @@ def _build_review_rows(report: Mapping[str, Any]) -> list[dict[str, str]]:
             signals = [str(signal) for signal in cast(Sequence[object], item["quality_signals"])]
             rows.append(
                 {
+                    "finding_id": str(item["finding_id"]),
                     "category": category,
                     "control_area": _humanize_category(category),
                     "document": document_name,
                     "evidence_level": quality,
                     "status": _review_status(quality),
                     "finding": str(item["source_citation"]),
-                    "recommended_manual_check": _manual_check_for_item(quality, signals),
-                    "source_reference": "%s#evidence-%d" % (document_name, item_index),
+                    "recommended_manual_check": str(
+                        item.get(
+                            "recommended_manual_check",
+                            _manual_check_for_item(quality, signals),
+                        )
+                    ),
+                    "source_reference": str(
+                        item.get("source_reference", "%s#evidence-%d" % (document_name, item_index))
+                    ),
+                    "review_status": "",
+                    "review_note": "",
+                    "reviewer": "",
+                    "reviewed_at": "",
                 }
             )
     return rows

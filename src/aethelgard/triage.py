@@ -7,6 +7,7 @@ customer data assumptions, and no legal compliance claims.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from collections import defaultdict
@@ -35,9 +36,12 @@ SUPPORTED_DOCUMENT_SUFFIXES: Final[frozenset[str]] = frozenset({".md", ".txt", "
 STRONG_EVIDENCE_THRESHOLD: Final[float] = 0.7
 MEDIUM_EVIDENCE_THRESHOLD: Final[float] = 0.6
 MAX_REPORT_CITATION_CHARS: Final[int] = 280
+FINDING_ID_PREFIX: Final[str] = "F-"
+FINDING_ID_HASH_CHARS: Final[int] = 8
 MIN_STRONG_FEATURES: Final[int] = 3
 MIN_MEDIUM_FEATURES: Final[int] = 2
 OUTDATED_YEAR_CUTOFF: Final[int] = 2024
+MAX_MANUAL_SIGNAL_COUNT: Final[int] = 4
 
 CATEGORY_KEYWORDS: Final[dict[str, tuple[str, ...]]] = {
     "risk_management": (
@@ -742,8 +746,9 @@ def render_triage_markdown(report: Mapping[str, Any]) -> str:
             continue
         for item in document["evidence"]:
             lines.append(
-                "- `%s` score %.2f compliant=%s: %s"
+                "- `%s` `%s` score %.2f compliant=%s: %s"
                 % (
+                    item["finding_id"],
                     item["category"],
                     item["confidence_score"],
                     item["is_compliant"],
@@ -889,8 +894,9 @@ def _build_document_result(
     strong_categories: set[str] = set()
     gap_warnings: list[str] = []
     quality_counts: dict[str, int] = {"strong": 0, "medium": 0, "weak": 0, "warning": 0}
+    document_name = _safe_relative(document_path, input_root)
 
-    for item in evidence_items:
+    for item_index, item in enumerate(evidence_items, start=1):
         category = item.requirement_id
         citation = _bounded_citation(" ".join(item.source_citation.split()))
         quality_result = _evaluate_evidence_quality(
@@ -900,17 +906,31 @@ def _build_document_result(
             item.confidence_score,
         )
         quality = str(quality_result["quality"])
+        quality_signals = cast(list[str], quality_result["signals"])
+        concrete_features = cast(list[str], quality_result["features"])
+        source_reference = "%s#evidence-%d" % (document_name, item_index)
+        finding_id = _build_finding_id(
+            category=category,
+            document=document_name,
+            evidence_level=quality,
+            is_compliant=item.is_compliant,
+            finding=citation,
+            source_reference=source_reference,
+        )
         quality_counts[quality] += 1
         evidence.append(
             {
+                "finding_id": finding_id,
                 "category": category,
                 "is_compliant": item.is_compliant,
                 "confidence_score": item.confidence_score,
                 "quality": quality,
-                "quality_signals": quality_result["signals"],
-                "concrete_features": quality_result["features"],
+                "quality_signals": quality_signals,
+                "concrete_features": concrete_features,
                 "strong": quality == "strong",
                 "source_citation": citation,
+                "source_reference": source_reference,
+                "recommended_manual_check": _manual_check_for_evidence(quality, quality_signals),
             }
         )
         categories[category] += 1
@@ -923,7 +943,7 @@ def _build_document_result(
 
     deduped_warnings = sorted(set(gap_warnings))
     return {
-        "file": _safe_relative(document_path, input_root),
+        "file": document_name,
         "evidence_count": len(evidence),
         "strong_evidence_count": sum(1 for item in evidence if item["strong"]),
         "quality_counts": quality_counts,
@@ -933,6 +953,43 @@ def _build_document_result(
         "warnings": deduped_warnings,
         "evidence": evidence,
     }
+
+
+def _manual_check_for_evidence(quality: str, signals: Sequence[str]) -> str:
+    if signals:
+        return "Review quality signals: %s." % ", ".join(signals[:MAX_MANUAL_SIGNAL_COUNT])
+    if quality == "strong":
+        return "Confirm implemented control, owner, review cadence, and evidence freshness."
+    return "Confirm whether this is real control evidence or only weak wording."
+
+
+def _build_finding_id(
+    *,
+    category: str,
+    document: str,
+    evidence_level: str,
+    is_compliant: bool,
+    finding: str,
+    source_reference: str,
+) -> str:
+    basis = "\n".join(
+        _normalize_finding_id_part(part)
+        for part in (
+            category,
+            category.replace("_", " "),
+            document,
+            evidence_level,
+            str(is_compliant),
+            finding,
+            source_reference,
+        )
+    )
+    digest = hashlib.sha256(basis.encode("utf-8")).hexdigest()[:FINDING_ID_HASH_CHARS]
+    return "%s%s" % (FINDING_ID_PREFIX, digest)
+
+
+def _normalize_finding_id_part(value: str) -> str:
+    return " ".join(value.casefold().split())
 
 
 def _evaluate_evidence_quality(

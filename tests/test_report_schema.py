@@ -53,7 +53,14 @@ def test_triage_per_document_required_fields() -> None:
 
     assert required.issubset(document)
     assert {"strong", "medium", "weak", "warning"}.issubset(document["quality_counts"])
-    assert {"quality", "quality_signals", "concrete_features"}.issubset(document["evidence"][0])
+    assert {
+        "finding_id",
+        "quality",
+        "quality_signals",
+        "concrete_features",
+        "source_reference",
+        "recommended_manual_check",
+    }.issubset(document["evidence"][0])
 
 
 def test_eval_report_required_fields() -> None:

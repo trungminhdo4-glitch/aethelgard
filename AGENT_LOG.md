@@ -63,3 +63,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Redaction-Preflight, `pilot-run` CLI, Review-CSV, Demo-Bundle und Tests |
 | Commit | - |
 | Ergebnis | OK: `compileall`, `pytest` (219 passed, 1 skipped), `ruff`, `mypy`, Fixture-Safety, Pilot-Readiness und `pilot-run` Demo gruen; kein Outreach, keine externen APIs, keine echten Kundendaten, keine Secrets |
+
+### 2026-06-28 23:20 - Reviewed findings workflow
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Stabile Finding-IDs, `review-apply` CLI, reviewed JSON/Markdown/Summary und Review-Workflow-Tests |
+| Commit | - |
+| Ergebnis | OK: `compileall`, `pytest` (225 passed, 1 skipped, 17 subtests), `ruff`, `mypy`, Fixture-Safety, Pilot-Readiness, `pilot-run`, `review-apply` und `git diff --check` gruen; kein Outreach, keine externen APIs, keine echten Kundendaten, keine Secrets |

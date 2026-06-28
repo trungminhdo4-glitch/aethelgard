@@ -18,6 +18,7 @@ human pre-review of security documentation through local evidence triage.
 - Public synthetic NIS-2 fixture corpus with golden labels.
 - Demo CLI for JSON/Markdown evidence reports.
 - Pilot-run CLI with masked preflight reports and human-review CSV export.
+- Review-apply CLI for reviewed JSON/Markdown reports and review summaries.
 - Evaluation CLI with pilot-readiness thresholds.
 - Calibration reports with proxy quality indicators for synthetic fixture packs.
 - Optional metadata-only audit ledger for CLI runs.
@@ -82,6 +83,21 @@ Outputs:
 
 Use `--fail-on-sensitive` to block medium sensitive markers such as e-mail addresses
 and phone numbers. Use `--no-preflight` only for explicitly safe synthetic/demo runs.
+
+## Review Apply Command
+
+```powershell
+python -m aethelgard.cli review-apply --report reports/pilot-demo/evidence_report.json --review-csv reports/pilot-demo/review_items.csv --out reports/pilot-reviewed
+```
+
+Outputs:
+
+- `reports/pilot-reviewed/reviewed_report.json`
+- `reports/pilot-reviewed/reviewed_report.md`
+- `reports/pilot-reviewed/review_summary.json`
+
+Use `--strict` to fail on unknown review statuses or unknown finding IDs. Blank
+`review_status` values are treated as `open`.
 
 ## Evaluation Command
 

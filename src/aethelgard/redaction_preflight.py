@@ -161,6 +161,18 @@ def write_preflight_reports(out_dir: Path | str, report: PreflightReport) -> Non
     (target_dir / PREFLIGHT_MD_NAME).write_text(render_preflight_markdown(report), encoding="utf-8")
 
 
+def has_sensitive_markers(text: str) -> bool:
+    """Return whether text contains local sensitive-content markers."""
+    if not text.strip():
+        return False
+    return bool(_scan_line("review_note", 1, text[:MAX_PREFLIGHT_LINE_CHARS]))
+
+
+def mask_sensitive_text(text: str) -> str:
+    """Mask known sensitive values in a single text field."""
+    return _mask_known_values(text)
+
+
 def render_preflight_markdown(report: Mapping[str, object]) -> str:
     """Render a compact Markdown preflight report with escaped file content."""
     summary = cast(Mapping[str, int], report["summary"])

@@ -63,6 +63,8 @@ def test_pilot_run_writes_bundle_review_csv_and_audit(
     assert summary["exit_code"] == 0
     assert headers == list(REVIEW_CSV_COLUMNS)
     assert rows
+    assert rows[0]["finding_id"].startswith("F-")
+    assert rows[0]["review_status"] == ""
     assert rows[0]["recommended_manual_check"]
     assert audit_entry["command"] == "triage"
     assert "source_citation" not in ledger_line

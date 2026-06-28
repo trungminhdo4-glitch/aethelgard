@@ -54,9 +54,10 @@ src/aethelgard/
     pdf_handler.py         # PDF Page-Streaming (optional pypdf)
     classifier.py          # Klassifikations-Engine (deterministische Heuristik)
   audit.py                 # Append-only JSONL Run-Ledger (Metadaten, keine Inhalte)
-  cli.py                   # CLI: triage + eval + pilot-run
+  cli.py                   # CLI: triage + eval + pilot-run + review-apply
   public_sources.py        # Pure URL-Check-Klassifikation fuer offizielle Quellen
   redaction_preflight.py   # Lokaler Sensitive-Content-Preflight mit Maskierung
+  review.py                # Human-Review-Import, reviewed reports, review summary
   triage.py                # Report-, Quality-, Calibration- und Evaluations-Engine
 README.md                  # Nutzer-Quickstart und Produktkern
 docs/
@@ -191,7 +192,7 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **200 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
+- **225 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
 - Externe IO (Dateisystem, pypdf) zu 100 % gemockt via `unittest.mock`
 - AAA-Pattern (Arrange, Act, Assert)
 - Test-Klassen (document_parser): `TestComplianceEvidenceSchema`,
@@ -214,7 +215,7 @@ from aethelgard.mvp1 import (
 - Public-Eval/CLI-Tests: `test_public_nis2_fixtures.py`,
   `test_cli_triage.py`, `test_cli_eval.py`, `test_cli_pilot_run.py`,
   `test_report_schema.py`, `test_nis2_control_coverage.py`,
-  `test_redaction_preflight.py`
+  `test_redaction_preflight.py`, `test_review_workflow.py`
 - Paid-Pilot-Hardening-Tests: `test_audit_ledger.py`,
   `test_adversarial_fixtures.py`, `test_report_handover.py`,
   `test_public_real_docs_manifest.py`, `test_pilot_readiness_check.py`
@@ -286,7 +287,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | NIS2 Article 21 Coverage | OK: 10 Artikel-21(2)-Themen als Coverage-Matrix, keine Legal-/Audit-Claims | 2026-06-28 |
 | Controlled First Outreach Wave | DRAFT_READY_BLOCKED_BY_SENDER: 3 Firmen verifiziert, Drafts/Tracker/Runbooks erstellt, kein Versand ohne Absenderkonto | 2026-06-28 |
 | Pilot Run Flow | OK: redaction preflight, `pilot-run`, Demo-Bundle und `review_items.csv`; `reports/pilot-demo`: 8/8 Dokumente, 57 Evidenzen, Preflight `pass` | 2026-06-28 |
-| Tests | 219/219 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
+| Human Review Apply Flow | OK: stabile `finding_id`, `review-apply`, `reviewed_report.json`, `reviewed_report.md`, `review_summary.json`; strict/nonstrict CSV-Validation und Review-Notiz-Maskierung | 2026-06-28 |
+| Tests | 225/225 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
