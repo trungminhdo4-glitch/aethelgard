@@ -47,3 +47,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | NIS2 Artikel-21(2)-Coverage-Matrix, erweiterte Evidence-Kategorien, Report-Schema, Tests und Doku |
 | Commit | - |
 | Ergebnis | OK: `compileall`, `pytest` (200 passed, 1 skipped opt-in network, 17 subtests), `check_public_fixtures.py`, `check_pilot_readiness.py`, `ruff`, `mypy` und `git diff --check` gruen; kein Outreach-Versand, kein Push, keine personenbezogenen Leads, keine Secrets |
+
+### 2026-06-28 05:10 - Controlled first outreach wave
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | First-Wave-Firmenverifikation, sendefertige Drafts, Outreach-Tracker, Response-/Demo-/Qualification-Runbooks und Safety-Tests |
+| Commit | - |
+| Ergebnis | DRAFT_READY_BLOCKED_BY_SENDER: Preflight gruen, drei Firmen auf Firmenebene verifiziert, kein Versand ohne freigegebenes Absenderkonto/OWNER_NAME; keine privaten Kontakte, keine LinkedIn-/Xing-Recherche, keine Anhaenge, keine Secrets |

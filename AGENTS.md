@@ -84,6 +84,7 @@ docs/
   target-selection-guide.md # Manuelle Zielauswahl ohne private Lead-Daten
   pilot-call-notes-template.md # Call-Notes und Go/No-Go-Erfassung
   evaluation/              # Public/Synthetic Eval-Plan, Quellenmanifest, Labeling
+  research/                 # Berlin-Recherche, First-Wave-Drafts, Tracker, Response-/Demo-Runbooks
 scripts/
   check_public_fixtures.py # statischer Fixture Safety Gate
   check_pilot_readiness.py # kontrollierter Paid-Pilot Gate-Report
@@ -221,6 +222,9 @@ from aethelgard.mvp1 import (
   Sample-Pack-Verbote, company-level Target-Template, Go/No-Go und enge Claims.
 - Berlin-Research-Tests: `test_berlin_target_research_docs.py` prueft
   company-level Kontaktwege, keine LinkedIn-/Xing-Quellen, Owner-Gate und enge Claims.
+- First-Wave-Outreach-Tests: `test_first_wave_outreach_docs.py` prueft max. 3
+  Firmen, `draft_ready`, company-level Kanaele, keine privaten Kontakte, keine
+  Anhaenge und keine verbotenen Claims.
 
 ## Bekannte Gotchas
 
@@ -278,7 +282,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Paid Pilot Ops Readiness (Customer-like Pack, Calibration, Demo/Legal/Backup) | OK | 2026-06-28 |
 | Outreach Preparation (Docs, ICP, Follow-up, Objections, Call Pack) | OUTREACH_READY_WITH_OWNER_GATE | 2026-06-28 |
 | NIS2 Article 21 Coverage | OK: 10 Artikel-21(2)-Themen als Coverage-Matrix, keine Legal-/Audit-Claims | 2026-06-28 |
-| Tests | 200/200 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
+| Controlled First Outreach Wave | DRAFT_READY_BLOCKED_BY_SENDER: 3 Firmen verifiziert, Drafts/Tracker/Runbooks erstellt, kein Versand ohne Absenderkonto | 2026-06-28 |
+| Tests | 207/207 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
@@ -294,3 +299,4 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 
 - Owner waehlt manuell 3-5 Zielunternehmen aus und nutzt die MSP/Security-Beratung-E-Mail mit engem Claim fuer eine 15-Minuten-Demo-Anfrage.
 - Naechster Produkthebel: Demo-Report mit NIS2-Control-Coverage an synthetischen oder explizit owner-freigegebenen redacted Dokumenten zeigen.
+- First-Wave-Drafts manuell ueber oeffentliche Firmenkanaele senden: NETWORK ASSISTANCE, 030-IT, procado; danach Tracker aktualisieren und keine Follow-ups ohne neues Owner-Gate senden.
