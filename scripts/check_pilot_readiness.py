@@ -11,8 +11,13 @@ from typing import Final
 
 PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parents[1]
 SRC_ROOT: Final[Path] = PROJECT_ROOT / "src"
+SCRIPTS_ROOT: Final[Path] = PROJECT_ROOT / "scripts"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
+if str(SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
+
+from check_docker_delivery import build_report as build_docker_delivery_report  # noqa: E402
 
 from aethelgard import __version__  # noqa: E402
 from aethelgard.audit import append_audit_entry, build_audit_entry  # noqa: E402
@@ -50,6 +55,7 @@ OPS_REQUIRED_DOCS: Final[tuple[Path, ...]] = (
 )
 OPS_LEVEL: Final[str] = "ops"
 CONTROLLED_LEVEL: Final[str] = "controlled"
+DOCKER_LEVEL: Final[str] = "docker"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -73,7 +79,12 @@ def main(argv: list[str] | None = None) -> int:
     ops_passed = controlled_passed and all(
         check["passed"] for check in checks if check["required"] and check["level"] == OPS_LEVEL
     )
-    if ops_passed:
+    docker_static_passed = ops_passed and all(
+        check["passed"] for check in checks if check["required"] and check["level"] == DOCKER_LEVEL
+    )
+    if docker_static_passed:
+        status = "PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED"
+    elif ops_passed:
         status = "PILOT_OPS_READY"
     elif controlled_passed:
         status = "PILOT_READY_PAID_CONTROLLED"
@@ -182,6 +193,76 @@ def _build_checks(out_dir: Path) -> list[dict[str, object]]:
             "public_url_check_403_tolerant",
             _public_url_check_is_403_tolerant(),
             "Official public-source 403 is WARN, not FAIL.",
+        )
+    )
+    checks.append(
+        _check(
+            "review_metadata_safety_tests_present",
+            _test_file_mentions(
+                Path("tests") / "test_review_workflow.py",
+                (
+                    "test_review_apply_sanitizes_reviewer_metadata",
+                    "test_review_apply_rejects_free_text_reviewed_at",
+                ),
+            ),
+            "Review metadata sanitization regressions are present.",
+        )
+    )
+    checks.append(
+        _check(
+            "pilot_full_local_flow_test_present",
+            _test_file_mentions(
+                Path("tests") / "test_pilot_full_local_flow.py",
+                ("test_demo_pilot_cli_builds_full_metadata_only_flow",),
+            ),
+            "Full synthetic pilot flow regression is present.",
+        )
+    )
+    checks.append(
+        _check(
+            "pilot_demo_examples_present",
+            _pilot_demo_examples_present(),
+            "Synthetic examples/pilot demo pack is present.",
+        )
+    )
+    checks.append(
+        _check(
+            "public_data_manifest_present",
+            (PROJECT_ROOT / "examples" / "pilot" / "public_data_manifest.json").is_file(),
+            "Public-data decision manifest is present and offline.",
+        )
+    )
+    checks.append(
+        _check(
+            "docker_static_delivery",
+            _docker_static_delivery_is_ready(),
+            "Dockerfile, compose, .dockerignore, and static Docker delivery gates pass.",
+            level=DOCKER_LEVEL,
+        )
+    )
+    checks.append(
+        _check(
+            "docker_smoke_script_present",
+            (PROJECT_ROOT / "scripts" / "docker_smoke.ps1").is_file(),
+            "Opt-in Docker runtime smoke script is present.",
+            level=DOCKER_LEVEL,
+        )
+    )
+    checks.append(
+        _check(
+            "readme_docker_quickstart",
+            _readme_mentions_docker_quickstart(),
+            "README documents local consultant Docker quickstart.",
+            level=DOCKER_LEVEL,
+        )
+    )
+    checks.append(
+        _check(
+            "docker_runtime_verified",
+            False,
+            "Docker runtime is verified separately with scripts/docker_smoke.ps1.",
+            required=False,
+            level=DOCKER_LEVEL,
         )
     )
     checks.append(
@@ -331,6 +412,42 @@ def _public_url_check_is_403_tolerant() -> bool:
         status_code=403,
     )
     return verdict["status"] == URL_CHECK_WARN
+
+
+def _test_file_mentions(relative_path: Path, expected_terms: tuple[str, ...]) -> bool:
+    path = PROJECT_ROOT / relative_path
+    if not path.is_file():
+        return False
+    text = path.read_text(encoding="utf-8")
+    return all(term in text for term in expected_terms)
+
+
+def _pilot_demo_examples_present() -> bool:
+    base = PROJECT_ROOT / "examples" / "pilot"
+    required = (
+        base / "documents" / "supplier_security_annex.md",
+        base / "documents" / "incident_response_playbook.md",
+        base / "documents" / "continuity_and_access.md",
+        base / "questionnaire_demo.csv",
+        base / "supplier_profile_demo.json",
+        base / "supplier_profile_contract_demo.json",
+        base / "sbom" / "cyclonedx_demo.json",
+    )
+    return all(path.is_file() for path in required)
+
+
+def _docker_static_delivery_is_ready() -> bool:
+    return build_docker_delivery_report()["status"] == "DOCKER_STATIC_READY"
+
+
+def _readme_mentions_docker_quickstart() -> bool:
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    required = (
+        "Local Consultant Install / Docker Quickstart",
+        "docker build -t aethelgard:local .",
+        "docker compose run --rm aethelgard demo-pilot",
+    )
+    return all(term in readme for term in required)
 
 
 def _check(

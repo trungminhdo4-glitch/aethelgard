@@ -14,6 +14,7 @@ from aethelgard.review import (
     REVIEW_SUMMARY_JSON_NAME,
     REVIEWED_REPORT_JSON_NAME,
     REVIEWED_REPORT_MD_NAME,
+    safe_review_csv_cell,
 )
 from aethelgard.triage import REPORT_JSON_NAME
 
@@ -364,3 +365,158 @@ def test_review_apply_masks_secret_like_review_note(
     assert "[token:redacted]" in note
     warnings = cast(list[str], summary["warnings"])
     assert any("sensitive marker masked" in warning for warning in warnings)
+
+
+@pytest.mark.parametrize(
+    ("reviewer", "expected"),
+    [
+        ("reviewer@example.test", "[email:redacted]"),
+        (r"C:\Users\Alice\review.csv", "[path:redacted]"),
+        ("Bearer demo-review-token", "[token:redacted]"),
+        ("=HYPERLINK(\"https://example.invalid\")", "'=HYPERLINK"),
+    ],
+)
+def test_review_apply_sanitizes_reviewer_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    reviewer: str,
+    expected: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    pilot_dir = tmp_path / "pilot"
+    review_csv = _run_pilot(pilot_dir)
+    headers, rows = _read_review_rows(review_csv)
+    rows[0]["review_status"] = "accepted"
+    rows[0]["reviewer"] = reviewer
+    rows[0]["reviewed_at"] = "2026-06-30T12:00:00Z"
+    _write_review_rows(review_csv, headers, rows)
+
+    reviewed_dir = tmp_path / "reviewed"
+    exit_code = main(
+        [
+            "review-apply",
+            "--report",
+            str(pilot_dir / REPORT_JSON_NAME),
+            "--review-csv",
+            str(review_csv),
+            "--out",
+            str(reviewed_dir),
+            "--strict",
+        ]
+    )
+
+    reviewed_by_id = _findings_by_id(reviewed_dir / REVIEWED_REPORT_JSON_NAME)
+    item = reviewed_by_id[rows[0]["finding_id"]]
+
+    assert exit_code == 0
+    assert expected in str(item["reviewer"])
+    assert item["reviewed_at"] == "2026-06-30T12:00:00+00:00"
+
+
+def test_review_apply_rejects_free_text_reviewed_at(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    pilot_dir = tmp_path / "pilot"
+    review_csv = _run_pilot(pilot_dir)
+    headers, rows = _read_review_rows(review_csv)
+    rows[0]["review_status"] = "accepted"
+    rows[0]["reviewed_at"] = "today after lunch"
+    _write_review_rows(review_csv, headers, rows)
+
+    exit_code = main(
+        [
+            "review-apply",
+            "--report",
+            str(pilot_dir / REPORT_JSON_NAME),
+            "--review-csv",
+            str(review_csv),
+            "--out",
+            str(tmp_path / "reviewed"),
+            "--strict",
+        ]
+    )
+
+    assert exit_code == REVIEW_APPLY_ERROR_EXIT_CODE
+
+
+def test_review_apply_sanitizes_review_note_paths_formulas_and_markdown(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    pilot_dir = tmp_path / "pilot"
+    review_csv = _run_pilot(pilot_dir)
+    headers, rows = _read_review_rows(review_csv)
+    rows[0]["review_status"] = "accepted"
+    rows[0]["review_note"] = "Use C:/Users/Alice/.env\n## injected"
+    rows[1]["review_status"] = "reviewed"
+    rows[1]["review_note"] = "=HYPERLINK(\"https://example.invalid\")"
+    _write_review_rows(review_csv, headers, rows)
+
+    reviewed_dir = tmp_path / "reviewed"
+    exit_code = main(
+        [
+            "review-apply",
+            "--report",
+            str(pilot_dir / REPORT_JSON_NAME),
+            "--review-csv",
+            str(review_csv),
+            "--out",
+            str(reviewed_dir),
+            "--strict",
+        ]
+    )
+
+    reviewed_by_id = _findings_by_id(reviewed_dir / REVIEWED_REPORT_JSON_NAME)
+    first_note = str(reviewed_by_id[rows[0]["finding_id"]]["review_note"])
+    second_note = str(reviewed_by_id[rows[1]["finding_id"]]["review_note"])
+    markdown = (reviewed_dir / REVIEWED_REPORT_MD_NAME).read_text(encoding="utf-8")
+
+    assert exit_code == 0
+    assert "C:/Users/Alice" not in first_note
+    assert ".env" not in first_note
+    assert "[path:redacted]" in first_note
+    assert "\n## injected" not in first_note
+    assert second_note.startswith("'=")
+    assert "\n## injected" not in markdown
+
+
+def test_review_apply_unknown_status_warning_does_not_echo_secret_like_value(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    pilot_dir = tmp_path / "pilot"
+    review_csv = _run_pilot(pilot_dir)
+    headers, rows = _read_review_rows(review_csv)
+    rows[0]["review_status"] = "Authorization: Bearer demo-secret-token"
+    _write_review_rows(review_csv, headers, rows)
+
+    reviewed_dir = tmp_path / "reviewed"
+    exit_code = main(
+        [
+            "review-apply",
+            "--report",
+            str(pilot_dir / REPORT_JSON_NAME),
+            "--review-csv",
+            str(review_csv),
+            "--out",
+            str(reviewed_dir),
+        ]
+    )
+
+    summary = _read_json(reviewed_dir / REVIEW_SUMMARY_JSON_NAME)
+    warnings = "\n".join(cast(list[str], summary["warnings"]))
+
+    assert exit_code == 0
+    assert "Authorization" not in warnings
+    assert "Bearer" not in warnings
+    assert "demo-secret-token" not in warnings
+
+
+def test_safe_review_csv_cell_escapes_formula_prefixes() -> None:
+    assert safe_review_csv_cell("=1+1") == "'=1+1"
+    assert safe_review_csv_cell(" +SUM(A1:A2)") == "' +SUM(A1:A2)"
+    assert safe_review_csv_cell("reviewer-a") == "reviewer-a"

@@ -62,7 +62,7 @@ src/aethelgard/
     pdf_handler.py         # PDF Page-Streaming (optional pypdf)
     classifier.py          # Klassifikations-Engine (deterministische Heuristik)
   audit.py                 # Append-only JSONL Run-Ledger (Metadaten, keine Inhalte)
-  cli.py                   # CLI: triage + eval + pilot-run + review-apply + C-SCRM + trust-bundle + SBOM
+  cli.py                   # CLI: triage + eval + pilot-run + demo-pilot + review-apply + C-SCRM + trust-bundle + SBOM
   public_sources.py        # Pure URL-Check-Klassifikation fuer offizielle Quellen
   redaction_preflight.py   # Lokaler Sensitive-Content-Preflight mit Maskierung
   review.py                # Human-Review-Import, reviewed reports, review summary
@@ -102,6 +102,10 @@ docs/
 scripts/
   check_public_fixtures.py # statischer Fixture Safety Gate
   check_pilot_readiness.py # kontrollierter Paid-Pilot Gate-Report
+  check_docker_delivery.py # statischer Docker-Delivery-Gate
+examples/pilot/            # synthetischer lokaler End-to-End-Pilot-Pack
+Dockerfile                 # lokale CLI-Auslieferung, non-root, keine Reports/Caches im Image
+compose.yaml               # Offline-Demo-Service mit examples read-only und reports writable
 tests/fixtures/public_nis2/ # 17 synthetische Fixtures + golden_labels.json
 tests/fixtures/customer_like_nis2/ # 8 customer-like synthetische Fixtures + Labels
 tests/test_evidence_bridge.py # Reviewed Findings -> Evidence Store Bridge
@@ -141,6 +145,18 @@ tests/mvp1/
 - Wenn Sub-Agenten nicht verfuegbar sind oder haengen, uebernimmt der Hauptagent die Rolle selbst und
   dokumentiert kurz.
 - Sub-Agenten duerfen keine Owner-Gates ueberschreiben.
+
+### Public-/Demo-Data-Regel
+
+- Beispiel- und Public-Data-Fixtures duerfen keine PII, privaten Pfade, Secrets,
+  Cookies, Datenbanken, Logs oder echte Kundendaten enthalten.
+- Oeffentliche Drittdateien werden nicht blind committet. Falls sie genutzt werden,
+  braucht jede Fixture Quelle, Abrufdatum, Lizenz-/Terms-Hinweis soweit auffindbar
+  und SHA256; Tests muessen offline laufen.
+- `examples/pilot/public_data_manifest.json` dokumentiert bewusst, wenn keine
+  Drittquelle ingested wurde.
+- Docker-Kontext muss `.env*`, `.git`, `reports/`, venvs, Caches, Logs, DBs und
+  Research-/Outreach-Rohmaterial ausschliessen.
 
 ### Public API
 
@@ -227,7 +243,7 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **261 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
+- **297 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
 - Externe IO (Dateisystem, pypdf) zu 100 % gemockt via `unittest.mock`
 - AAA-Pattern (Arrange, Act, Assert)
 - Test-Klassen (document_parser): `TestComplianceEvidenceSchema`,
@@ -280,6 +296,12 @@ from aethelgard.mvp1 import (
 - Supplier-Profile-Tests: `test_supplier_profile_contract.py` prueft Contract-
   Normalisierung, ungueltige Kritikalitaet, fehlende `supplier_id` und Blockade
   privater/raw Felder.
+- Pilot-Full-Flow-Tests: `test_pilot_full_local_flow.py` prueft `demo-pilot`,
+  finale Trust-Bundle-Artefakte, deterministischen Bundle-Rebuild und das
+  manifest-only Public-Data-Decision-File.
+- Docker-Delivery-Tests: `test_docker_delivery.py` prueft Dockerfile, Compose,
+  `.dockerignore`, non-root Entry Point, offline Mount-Konzept und statische
+  Docker-Kontext-Safety.
 
 ## Bekannte Gotchas
 
@@ -344,16 +366,18 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Reviewed Evidence Bridge | OK: `evidence from-reviewed-report`, accepted/reviewed Findings -> Evidence Store, Questionnaire-Integration; rejected/needs-evidence ausgeschlossen | 2026-06-29 |
 | Trust Bundle Preview | OK: `trust-bundle build` erzeugt deterministic metadata-only Preview (`manifest`, Evidence-Index, Questionnaire-/Risk-Summary, README); keine Rohzitate, Drafts, privaten Pfade oder Compliance-Claims | 2026-06-29 |
 | Offline SBOM + Supplier Contracts | OK: `sbom ingest`, `sbom findings` und `supplier-profile validate`; CycloneDX-only, SPDX unsupported, stabile IDs, keine CVE/API/Netzwerk-Abfragen | 2026-06-29 |
-| Tests | 273/273 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-29 |
+| Pilot Readiness Slice | OK: Review-Metadaten-Sanitization fuer `reviewer`, `reviewed_at`, `review_note`; `demo-pilot` E2E-Flow mit synthetischem Pack und manifest-only Public-Data-Entscheidung | 2026-06-30 |
+| Docker Local Delivery | STATIC_READY_RUNTIME_UNVERIFIED: Dockerfile, `.dockerignore`, Compose, statischer Delivery-Gate und opt-in `scripts/docker_smoke.ps1`; Runtime-Smoke nur bei explizitem Docker-Lauf | 2026-06-30 |
+| Tests | 297/298 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-30 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
 | Real Public Source URL Check | Opt-in; 403/Timeout werden fuer offizielle Quellen als WARN klassifiziert | 2026-06-28 |
-| Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_OPS_READY` | 2026-06-28 |
+| Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED` | 2026-06-30 |
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
-| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-29 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (21 Source-Dateien) | 2026-06-29 |
+| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-30 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (21 Source-Dateien) | 2026-06-30 |
 | Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)

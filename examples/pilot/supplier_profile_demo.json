@@ -1,0 +1,9 @@
+{
+  "supplier_id": "SUP-SYNTH-DEMO-001",
+  "name": "Synthetic Managed Service Supplier",
+  "criticality": "high",
+  "services": [
+    "managed hosting",
+    "supplier support"
+  ]
+}

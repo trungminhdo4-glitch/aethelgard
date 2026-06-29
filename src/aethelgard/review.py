@@ -7,7 +7,7 @@ import json
 import re
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Final, TypedDict, cast
 
@@ -53,6 +53,16 @@ REVIEW_STATUS_SET: Final[frozenset[str]] = frozenset(REVIEW_STATUS_VALUES)
 MAX_REVIEW_NOTE_CHARS: Final[int] = 4_000
 MAX_REVIEWER_CHARS: Final[int] = 120
 MAX_REVIEWED_AT_CHARS: Final[int] = 80
+CSV_FORMULA_PREFIXES: Final[frozenset[str]] = frozenset({"=", "+", "-", "@"})
+PRIVATE_PATH_PATTERNS: Final[tuple[re.Pattern[str], ...]] = (
+    re.compile(r"\b[A-Z]:[\\/](?:Users|Documents and Settings)[\\/][^\s`\"'<>|,;]+", re.IGNORECASE),
+    re.compile(r"(?<!\w)/(?:home|Users)/[^\s`\"'<>|,;]+", re.IGNORECASE),
+)
+DOTENV_PATTERN: Final[re.Pattern[str]] = re.compile(r"(^|[\\/])\.env(?:$|[.\s\\/])", re.IGNORECASE)
+AUTH_VALUE_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:authorization|bearer|cookie)\b\s*:?\s*(?:Bearer\s+)?[A-Za-z0-9._~+/=-]{4,}",
+    re.IGNORECASE,
+)
 
 
 class ReviewApplyError(ValueError):
@@ -155,8 +165,18 @@ def apply_review_rows(
         review_note = _sanitize_review_note(str(row.get("review_note", "")), finding_id, warnings)
         item["review_status"] = status
         item["review_note"] = review_note
-        item["reviewer"] = _bounded_field(str(row.get("reviewer", "")), MAX_REVIEWER_CHARS)
-        item["reviewed_at"] = _bounded_field(str(row.get("reviewed_at", "")), MAX_REVIEWED_AT_CHARS)
+        item["reviewer"] = _sanitize_review_metadata_text(
+            str(row.get("reviewer", "")),
+            field_name="reviewer",
+            finding_id=finding_id,
+            max_chars=MAX_REVIEWER_CHARS,
+            warnings=warnings,
+        )
+        item["reviewed_at"] = _sanitize_reviewed_at(
+            str(row.get("reviewed_at", "")),
+            finding_id=finding_id,
+            row_number=row_number,
+        )
 
     return _build_summary(list(findings.values()), unknown_review_ids, warnings)
 
@@ -257,9 +277,9 @@ def _normalize_review_status(
         return "open"
     if status in REVIEW_STATUS_SET:
         return status
-    message = (
-        "unknown review_status %r for %s on review CSV row %d; coerced to open"
-        % (raw_status, finding_id, row_number)
+    message = "unknown review_status for %s on review CSV row %d; coerced to open" % (
+        finding_id,
+        row_number,
     )
     if strict:
         raise ReviewApplyError(message)
@@ -268,17 +288,104 @@ def _normalize_review_status(
 
 
 def _sanitize_review_note(note: str, finding_id: str, warnings: list[str]) -> str:
-    bounded_note = _bounded_field(note, MAX_REVIEW_NOTE_CHARS)
-    if not has_sensitive_markers(bounded_note):
-        return bounded_note
-    warnings.append("sensitive marker masked in review_note for %s" % finding_id)
-    return mask_sensitive_text(bounded_note)
+    return _sanitize_review_metadata_text(
+        note,
+        field_name="review_note",
+        finding_id=finding_id,
+        max_chars=MAX_REVIEW_NOTE_CHARS,
+        warnings=warnings,
+    )
+
+
+def _sanitize_review_metadata_text(
+    value: str,
+    *,
+    field_name: str,
+    finding_id: str,
+    max_chars: int,
+    warnings: list[str],
+) -> str:
+    normalized = _single_line(_bounded_field(value, max_chars))
+    masked = _mask_review_metadata(normalized)
+    safe_value = safe_review_csv_cell(masked)
+    if safe_value != normalized:
+        if has_sensitive_markers(normalized):
+            warnings.append("sensitive marker masked in %s for %s" % (field_name, finding_id))
+        else:
+            warnings.append(
+                "unsafe review metadata sanitized in %s for %s" % (field_name, finding_id)
+            )
+    return safe_value
+
+
+def _sanitize_reviewed_at(raw_value: str, *, finding_id: str, row_number: int) -> str:
+    value = _single_line(raw_value.strip())
+    if not value:
+        return ""
+    if len(value) > MAX_REVIEWED_AT_CHARS:
+        raise ReviewApplyError(
+            "reviewed_at exceeds length limit for %s on row %d" % (finding_id, row_number)
+        )
+    if _has_unsafe_review_marker(value) or _has_csv_formula_prefix(value):
+        raise ReviewApplyError(
+            "unsafe reviewed_at for %s on review CSV row %d" % (finding_id, row_number)
+        )
+    return _normalize_iso8601(value, finding_id=finding_id, row_number=row_number)
 
 
 def _bounded_field(value: str, max_chars: int) -> str:
     if len(value) <= max_chars:
         return value
     return value[:max_chars]
+
+
+def _single_line(value: str) -> str:
+    return " ".join(value.split())
+
+
+def safe_review_csv_cell(value: str) -> str:
+    """Return a review CSV cell that cannot be interpreted as a spreadsheet formula."""
+    if _has_csv_formula_prefix(value):
+        return "'%s" % value
+    return value
+
+
+def _has_csv_formula_prefix(value: str) -> bool:
+    stripped = value.lstrip()
+    return bool(stripped) and stripped[0] in CSV_FORMULA_PREFIXES
+
+
+def _mask_review_metadata(value: str) -> str:
+    masked = mask_sensitive_text(value)
+    masked = AUTH_VALUE_PATTERN.sub("[token:redacted]", masked)
+    masked = DOTENV_PATTERN.sub("[path:redacted]", masked)
+    for pattern in PRIVATE_PATH_PATTERNS:
+        masked = pattern.sub("[path:redacted]", masked)
+    return masked
+
+
+def _has_unsafe_review_marker(value: str) -> bool:
+    return (
+        has_sensitive_markers(value)
+        or AUTH_VALUE_PATTERN.search(value) is not None
+        or DOTENV_PATTERN.search(value) is not None
+        or any(pattern.search(value) is not None for pattern in PRIVATE_PATH_PATTERNS)
+    )
+
+
+def _normalize_iso8601(value: str, *, finding_id: str, row_number: int) -> str:
+    try:
+        if len(value) == 10:
+            return date.fromisoformat(value).isoformat()
+        if "T" not in value:
+            raise ValueError
+        normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+        return datetime.fromisoformat(normalized).isoformat()
+    except ValueError as exc:
+        raise ReviewApplyError(
+            "reviewed_at must be ISO-8601 or empty for %s on review CSV row %d"
+            % (finding_id, row_number)
+        ) from exc
 
 
 def _build_summary(

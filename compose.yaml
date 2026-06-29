@@ -1,0 +1,19 @@
+services:
+  aethelgard:
+    build:
+      context: .
+    image: aethelgard:local
+    network_mode: "none"
+    read_only: true
+    user: "10001:10001"
+    working_dir: /workspace
+    entrypoint: ["python", "-m", "aethelgard.cli"]
+    volumes:
+      - ./examples:/workspace/examples:ro
+      - ./reports:/workspace/reports:rw
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

@@ -25,7 +25,7 @@ from aethelgard.evidence_store import (
     safe_claims,
 )
 from aethelgard.redaction_preflight import has_sensitive_markers, mask_sensitive_text
-from aethelgard.review import REVIEW_CSV_COLUMNS, REVIEW_CSV_NAME
+from aethelgard.review import REVIEW_CSV_COLUMNS, REVIEW_CSV_NAME, safe_review_csv_cell
 from aethelgard.triage import DISCLAIMER
 
 QUESTIONNAIRE_JSON_NAME: Final[str] = "questionnaire_answers.json"
@@ -338,23 +338,22 @@ def _write_review_csv(path: Path, report: Mapping[str, object]) -> None:
         for item in items:
             mapped_controls = cast(Sequence[str], item["mapped_controls"])
             evidence_refs = cast(Sequence[str], item["evidence_refs"])
-            writer.writerow(
-                {
-                    "finding_id": str(item["finding_id"]),
-                    "category": mapped_controls[0] if mapped_controls else "questionnaire_unmapped",
-                    "control_area": ", ".join(mapped_controls) or "unmapped",
-                    "document": str(report["questionnaire_path"]),
-                    "evidence_level": "medium" if evidence_refs else "warning",
-                    "status": str(item["answer_status"]),
-                    "finding": _truncate(str(item["question"]), MAX_MARKDOWN_CELL_CHARS),
-                    "recommended_manual_check": str(item["recommended_manual_check"]),
-                    "source_reference": str(item["source_reference"]),
-                    "review_status": "",
-                    "review_note": "",
-                    "reviewer": "",
-                    "reviewed_at": "",
-                }
-            )
+            row = {
+                "finding_id": str(item["finding_id"]),
+                "category": mapped_controls[0] if mapped_controls else "questionnaire_unmapped",
+                "control_area": ", ".join(mapped_controls) or "unmapped",
+                "document": str(report["questionnaire_path"]),
+                "evidence_level": "medium" if evidence_refs else "warning",
+                "status": str(item["answer_status"]),
+                "finding": _truncate(str(item["question"]), MAX_MARKDOWN_CELL_CHARS),
+                "recommended_manual_check": str(item["recommended_manual_check"]),
+                "source_reference": str(item["source_reference"]),
+                "review_status": "",
+                "review_note": "",
+                "reviewer": "",
+                "reviewed_at": "",
+            }
+            writer.writerow({key: safe_review_csv_cell(value) for key, value in row.items()})
 
 
 def _manual_check(status: str) -> str:

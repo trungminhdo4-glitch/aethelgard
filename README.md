@@ -22,6 +22,8 @@ human pre-review of security documentation through local evidence triage.
 - Metadata-only evidence store, questionnaire, supplier-risk, and trust-bundle preview flow.
 - Offline CycloneDX SBOM inventory and metadata-gap findings with no CVE/API/network lookup.
 - Supplier profile contract validator for local cascade references.
+- Full synthetic `demo-pilot` CLI flow for local consultant/laptop validation.
+- Dockerfile and Compose profile for local offline CLI delivery.
 - Evaluation CLI with pilot-readiness thresholds.
 - Calibration reports with proxy quality indicators for synthetic fixture packs.
 - Optional metadata-only audit ledger for CLI runs.
@@ -102,13 +104,51 @@ Outputs:
 Use `--strict` to fail on unknown review statuses or unknown finding IDs. Blank
 `review_status` values are treated as `open`.
 
+Review metadata is sanitized before it reaches reviewed JSON or Markdown outputs:
+`reviewer` and `review_note` mask e-mail, token, `.env`, and private-path markers;
+spreadsheet formula prefixes are escaped; and `reviewed_at` must be empty or ISO-8601.
+
+## Pilot Demo: What the Customer Gets
+
+The full synthetic local demo runs:
+
+```powershell
+python -m aethelgard.cli demo-pilot --examples examples/pilot --out reports/pilot-demo-local
+```
+
+Outputs:
+
+- `reports/pilot-demo-local/preflight_report.json` and `.md`
+- `reports/pilot-demo-local/evidence_report.json` and `.md`
+- `reports/pilot-demo-local/review_items.csv`
+- `reports/pilot-demo-local/reviewed/reviewed_report.json` and `.md`
+- `reports/pilot-demo-local/evidence_store.json`
+- `reports/pilot-demo-local/questionnaire/questionnaire_answers.json` and `.md`
+- `reports/pilot-demo-local/questionnaire-reviewed/reviewed_report.json`
+- `reports/pilot-demo-local/risk/supplier_risk.json` and `.md`
+- `reports/pilot-demo-local/sbom_inventory.json`
+- `reports/pilot-demo-local/sbom_findings.json`
+- `reports/pilot-demo-local/supplier_profile_contract.normalized.json`
+- `reports/pilot-demo-local/trust-bundle/manifest.json`
+- `reports/pilot-demo-local/trust-bundle/evidence_index.json`
+- `reports/pilot-demo-local/trust-bundle/questionnaire_summary.json`
+- `reports/pilot-demo-local/trust-bundle/supplier_risk_summary.json`
+
+The demo answers: which synthetic documents produced candidate evidence, which findings
+were reviewed, which controls have metadata-only evidence, which questionnaire items
+still need evidence, which SBOM metadata gaps exist, and what goes into the final trust
+bundle preview. It does not certify compliance, replace legal review, make audit claims,
+or process customer data. Inputs in `examples/pilot` are synthetic; no public third-party
+data is ingested by default.
+
 ## Local C-SCRM Flow
 
 ```powershell
 python -m aethelgard.cli evidence from-reviewed-report --input reports/pilot-reviewed/reviewed_report.json --out reports/cscrm/evidence_store.json
 python -m aethelgard.cli questionnaire --questions tests/fixtures/scrm/questionnaire_e2e.csv --evidence-store reports/cscrm/evidence_store.json --out reports/cscrm/questionnaire
-python -m aethelgard.cli supplier-risk --profile tests/fixtures/scrm/supplier_profile.json --questionnaire-report reports/cscrm/questionnaire/questionnaire_answers.json --out reports/cscrm/risk
-python -m aethelgard.cli trust-bundle build --evidence reports/cscrm/evidence_store.json --supplier-risk reports/cscrm/risk/supplier_risk.json --questionnaire reports/cscrm/questionnaire/questionnaire_answers.json --out reports/cscrm/trust-bundle
+python -m aethelgard.cli review-apply --report reports/cscrm/questionnaire/questionnaire_answers.json --review-csv reports/cscrm/questionnaire/review_items.csv --out reports/cscrm/questionnaire-reviewed --strict
+python -m aethelgard.cli supplier-risk --profile tests/fixtures/scrm/supplier_profile.json --questionnaire-report reports/cscrm/questionnaire-reviewed/reviewed_report.json --out reports/cscrm/risk
+python -m aethelgard.cli trust-bundle build --evidence reports/cscrm/evidence_store.json --supplier-risk reports/cscrm/risk/supplier_risk.json --questionnaire reports/cscrm/questionnaire-reviewed/reviewed_report.json --out reports/cscrm/trust-bundle
 ```
 
 Trust bundles are metadata-only previews. They include source hashes, section names,
@@ -153,6 +193,46 @@ python -m aethelgard.cli supplier-profile validate --input supplier_profile_cont
 The contract links supplier metadata to evidence, questionnaire, SBOM, and risk-summary
 references. Raw notes, private paths, secret-like markers, and unsupported fields are
 blocked.
+
+For a runnable synthetic contract example:
+
+```powershell
+python -m aethelgard.cli supplier-profile validate --input examples/pilot/supplier_profile_contract_demo.json --out reports/cscrm/supplier_profile_contract.normalized.json
+```
+
+## Local Consultant Install / Docker Quickstart
+
+Prerequisite: Docker Desktop or Docker Engine.
+
+```powershell
+docker build -t aethelgard:local .
+docker run --rm aethelgard:local --help
+docker compose run --rm aethelgard --help
+docker compose run --rm aethelgard demo-pilot --examples examples/pilot --out reports/docker-demo
+```
+
+Inputs are mounted from `./examples` as read-only data. Outputs are written under
+`./reports`, which is ignored by Git. The Compose service uses `network_mode: "none"`
+for the default local demo path and runs as a non-root user. Do not place secrets,
+customer data, `.env` files, databases, or private logs in the Docker build context.
+
+To process owner-approved local files, mount or copy them into a project subdirectory
+that is not ignored for Docker, then run the existing CLI commands with explicit
+`--input` and `--out` paths. The tool runs locally and does not send data to cloud
+services.
+
+Delivery and maintenance models:
+
+- Local source build: the consultant builds `aethelgard:local` from this repository.
+- Versioned image or tarball: the owner can distribute a reviewed image artifact.
+- Maintenance updates: new checks, templates, public-fixture manifests, security
+  updates, and bug fixes can be delivered as a new source or image release.
+
+Runtime Docker proof is opt-in:
+
+```powershell
+.\scripts\docker_smoke.ps1
+```
 
 ## Evaluation Command
 
@@ -205,6 +285,8 @@ Outputs:
 
 Status values:
 
+- `PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED`: local pilot gates and static Docker
+  delivery gates pass; Docker runtime smoke has not been run by this checker.
 - `PILOT_OPS_READY`: local pilot operations pack is present and local readiness gates pass.
 - `PILOT_READY_PAID_CONTROLLED`: ready only for a small controlled pilot with
   non-sensitive documents and human review.

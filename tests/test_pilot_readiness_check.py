@@ -21,10 +21,12 @@ def test_pilot_readiness_check_writes_reports(tmp_path: Path) -> None:
 
     payload = json.loads(json_path.read_text(encoding="utf-8"))
     markdown = md_path.read_text(encoding="utf-8")
-    assert payload["status"] == "PILOT_OPS_READY"
-    assert "PILOT_OPS_READY" in markdown
+    assert payload["status"] == "PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED"
+    assert "PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED" in markdown
     assert all(check["passed"] for check in payload["checks"] if check["required"])
     check_ids = {check["id"] for check in payload["checks"]}
     assert "customer_like_eval" in check_ids
     assert "calibration_report_outputs" in check_ids
     assert "public_url_check_403_tolerant" in check_ids
+    assert "docker_static_delivery" in check_ids
+    assert "pilot_full_local_flow_test_present" in check_ids

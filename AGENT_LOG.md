@@ -111,3 +111,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Synthetische CycloneDX-Demo-Fixture, SBOM-Negativtests, Supplier-Profile-/Trust-Bundle-Regressionen und README-Demo-Flow |
 | Commit | - |
 | Ergebnis | OK: `py_compile`, `pytest` (285 passed, 1 skipped, 17 subtests), `ruff`, `mypy src`, Fixture-Safety inkl. Demo-Fixture, Pilot-Readiness, `git diff --check`, `git diff --cached --check` und Secret-Wertscan gruen; 3 Read-Only-Sub-Agenten genutzt; kein Live-Netzwerk, keine echten Kundendaten, keine Secrets |
+
+### 2026-06-30 00:32 - Pilot readiness and Docker local delivery
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Review-Metadaten-Sanitization, voller synthetischer `demo-pilot`-Flow, manifest-only Public-Data-Entscheidung, Dockerfile/Compose und statische Delivery-Gates |
+| Commit | - |
+| Ergebnis | OK: Start-HEAD `1865320ca45835f34b1612004be46eade295884d`; echte Gaps: `reviewer`/`reviewed_at` unsanitized, raw invalid `review_status` in Warnings, kein einzelner Full-Pilot-Flow, keine Docker-Artefakte; umgesetzt mit Tests, `pytest` (297 passed, 1 skipped, 17 subtests), `py_compile`, targeted `ruff`, `mypy src`, `demo-pilot`, Docker-Static-Gate und Pilot-Readiness `PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED`; Public Data: keine Drittquelle ingested, lokale synthetische SBOM mit SHA256 manifestiert; keine Secrets/PII/.env gelesen oder beruehrt; Docker Runtime-Smoke separat via `scripts/docker_smoke.ps1` |

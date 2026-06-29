@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -21,13 +22,13 @@ from aethelgard.evidence_bridge import (
     bridge_reviewed_report_to_evidence_store,
 )
 from aethelgard.evidence_store import EvidenceStoreError
-from aethelgard.questionnaire import QuestionnaireError, run_questionnaire
+from aethelgard.questionnaire import QUESTIONNAIRE_JSON_NAME, QuestionnaireError, run_questionnaire
 from aethelgard.redaction_preflight import (
     build_skipped_preflight_report,
     run_redaction_preflight,
     write_preflight_reports,
 )
-from aethelgard.review import ReviewApplyError, apply_review_csv
+from aethelgard.review import REVIEWED_REPORT_JSON_NAME, ReviewApplyError, apply_review_csv
 from aethelgard.sbom import (
     SbomError,
     build_sbom_findings_report,
@@ -37,8 +38,8 @@ from aethelgard.supplier_profile import (
     SupplierProfileContractError,
     validate_supplier_profile_contract,
 )
-from aethelgard.supplier_risk import SupplierRiskError, run_supplier_risk
-from aethelgard.triage import run_eval, run_triage
+from aethelgard.supplier_risk import SUPPLIER_RISK_JSON_NAME, SupplierRiskError, run_supplier_risk
+from aethelgard.triage import REPORT_JSON_NAME, run_eval, run_triage
 from aethelgard.trust_bundle import TrustBundleError, build_trust_bundle_preview
 
 REVIEW_CSV_NAME: Final[str] = review_module.REVIEW_CSV_NAME
@@ -46,6 +47,18 @@ REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = review_module.REVIEW_CSV_COLUMNS
 PREFLIGHT_BLOCK_EXIT_CODE: Final[int] = 3
 REVIEW_APPLY_ERROR_EXIT_CODE: Final[int] = 4
 C_SCRM_ERROR_EXIT_CODE: Final[int] = 5
+DEMO_PILOT_SUMMARY_NAME: Final[str] = "demo_pilot_summary.json"
+DEMO_REVIEWED_AT: Final[str] = "2026-06-30T00:00:00+00:00"
+DEMO_ACCEPTABLE_CATEGORIES: Final[frozenset[str]] = frozenset(
+    {
+        "access_control",
+        "business_continuity",
+        "incident_reporting",
+        "secure_development",
+        "supplier_security",
+        "vulnerability_management",
+    }
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -95,6 +108,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-preflight",
         action="store_true",
         help="Skip redaction preflight and write an explicit skipped preflight report.",
+    )
+
+    demo_pilot_parser = subparsers.add_parser(
+        "demo-pilot",
+        help="Run the full local synthetic pilot flow and build a trust bundle.",
+    )
+    demo_pilot_parser.add_argument(
+        "--examples",
+        type=Path,
+        default=None,
+        help="Pilot example directory. Defaults to examples/pilot.",
+    )
+    demo_pilot_parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reports") / "pilot-demo-local",
+        help="Output directory for the full local pilot flow.",
     )
 
     review_parser = subparsers.add_parser(
@@ -307,6 +337,8 @@ def main(argv: list[str] | None = None) -> int:
         exit_code = 0 if report["status"] == "PILOT_READY" else 2
     elif args.command == "pilot-run":
         exit_code = _run_pilot(args)
+    elif args.command == "demo-pilot":
+        exit_code = _run_demo_pilot(args)
     elif args.command == "review-apply":
         exit_code = _run_review_apply(args)
     elif args.command == "validate-controls":
@@ -365,6 +397,204 @@ def _run_pilot(args: argparse.Namespace) -> int:
     if args.audit:
         _append_triage_audit(input_path, output_path, result)
     return int(result["summary"]["exit_code"])
+
+
+def _run_demo_pilot(args: argparse.Namespace) -> int:
+    try:
+        examples_dir = _resolve_examples_dir(cast(Path | None, args.examples))
+        output_path = _resolve_output_path(cast(Path, args.out))
+        _run_demo_pilot_flow(examples_dir, output_path)
+    except (
+        ControlCatalogError,
+        EvidenceBridgeError,
+        EvidenceStoreError,
+        QuestionnaireError,
+        ReviewApplyError,
+        SbomError,
+        SupplierProfileContractError,
+        SupplierRiskError,
+        TrustBundleError,
+    ) as exc:
+        print("demo-pilot failed: %s" % exc, file=sys.stderr)
+        return C_SCRM_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_demo_pilot_flow(examples_dir: Path, output_path: Path) -> None:
+    documents_dir = examples_dir / "documents"
+    questionnaire_csv = examples_dir / "questionnaire_demo.csv"
+    supplier_profile = examples_dir / "supplier_profile_demo.json"
+    supplier_profile_contract = examples_dir / "supplier_profile_contract_demo.json"
+    sbom_path = examples_dir / "sbom" / "cyclonedx_demo.json"
+    _require_demo_inputs(
+        documents_dir,
+        questionnaire_csv,
+        supplier_profile,
+        supplier_profile_contract,
+        sbom_path,
+    )
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    preflight_report = run_redaction_preflight(documents_dir)
+    write_preflight_reports(output_path, preflight_report)
+    if preflight_report["status"] == "block":
+        raise ReviewApplyError("demo-pilot preflight blocked synthetic inputs")
+
+    pilot_result = run_triage(documents_dir, output_path)
+    pilot_report = cast(dict[str, Any], pilot_result["report"])
+    _write_review_items_csv(output_path / REVIEW_CSV_NAME, pilot_report)
+    _fill_demo_review_csv(output_path / REVIEW_CSV_NAME)
+
+    reviewed_dir = output_path / "reviewed"
+    apply_review_csv(
+        output_path / REPORT_JSON_NAME,
+        output_path / REVIEW_CSV_NAME,
+        reviewed_dir,
+        strict=True,
+    )
+
+    evidence_store_path = output_path / "evidence_store.json"
+    bridge_reviewed_report_to_evidence_store(
+        reviewed_dir / REVIEWED_REPORT_JSON_NAME,
+        evidence_store_path,
+    )
+
+    questionnaire_dir = output_path / "questionnaire"
+    run_questionnaire(questionnaire_csv, evidence_store_path, questionnaire_dir)
+    _fill_demo_questionnaire_review_csv(questionnaire_dir / REVIEW_CSV_NAME)
+
+    reviewed_questionnaire_dir = output_path / "questionnaire-reviewed"
+    apply_review_csv(
+        questionnaire_dir / QUESTIONNAIRE_JSON_NAME,
+        questionnaire_dir / REVIEW_CSV_NAME,
+        reviewed_questionnaire_dir,
+        strict=True,
+    )
+
+    risk_dir = output_path / "risk"
+    run_supplier_risk(
+        supplier_profile,
+        reviewed_questionnaire_dir / REVIEWED_REPORT_JSON_NAME,
+        risk_dir,
+        findings_report_path=reviewed_dir / REVIEWED_REPORT_JSON_NAME,
+    )
+    build_sbom_inventory(sbom_path, output_path / "sbom_inventory.json")
+    build_sbom_findings_report(sbom_path, output_path / "sbom_findings.json")
+    validate_supplier_profile_contract(
+        supplier_profile_contract,
+        output_path / "supplier_profile_contract.normalized.json",
+    )
+    trust_bundle_dir = output_path / "trust-bundle"
+    build_trust_bundle_preview(
+        evidence_store_path,
+        risk_dir / SUPPLIER_RISK_JSON_NAME,
+        reviewed_questionnaire_dir / REVIEWED_REPORT_JSON_NAME,
+        trust_bundle_dir,
+    )
+    _write_demo_summary(output_path, trust_bundle_dir)
+
+
+def _resolve_examples_dir(path: Path | None) -> Path:
+    if path is not None:
+        return Path(path)
+    cwd_examples = Path("examples") / "pilot"
+    if cwd_examples.is_dir():
+        return cwd_examples
+    return Path(__file__).resolve().parents[2] / "examples" / "pilot"
+
+
+def _require_demo_inputs(*paths: Path) -> None:
+    missing = [path for path in paths if not path.exists()]
+    if missing:
+        raise ReviewApplyError(
+            "demo-pilot inputs are missing: %s" % ", ".join(path.as_posix() for path in missing)
+        )
+
+
+def _fill_demo_review_csv(path: Path) -> None:
+    headers, rows = _read_review_csv_rows(path)
+    approved_count = 0
+    for row in rows:
+        category = row.get("category", "")
+        if category in DEMO_ACCEPTABLE_CATEGORIES and approved_count == 0:
+            row["review_status"] = "accepted"
+            approved_count += 1
+        elif category in DEMO_ACCEPTABLE_CATEGORIES and approved_count == 1:
+            row["review_status"] = "reviewed"
+            approved_count += 1
+        elif row.get("evidence_level") == "warning":
+            row["review_status"] = "needs_evidence"
+        else:
+            row["review_status"] = "open"
+        row["review_note"] = "Synthetic demo review decision."
+        row["reviewer"] = "Security Reviewer"
+        row["reviewed_at"] = DEMO_REVIEWED_AT
+    if approved_count == 0:
+        raise ReviewApplyError("demo-pilot could not mark any synthetic finding as accepted")
+    _write_review_csv_rows(path, headers, rows)
+
+
+def _fill_demo_questionnaire_review_csv(path: Path) -> None:
+    headers, rows = _read_review_csv_rows(path)
+    accepted = False
+    for row in rows:
+        if row.get("status") == "needs_evidence":
+            row["review_status"] = "needs_evidence"
+        elif not accepted:
+            row["review_status"] = "accepted"
+            accepted = True
+        else:
+            row["review_status"] = "reviewed"
+        row["review_note"] = "Synthetic questionnaire review decision."
+        row["reviewer"] = "Security Reviewer"
+        row["reviewed_at"] = DEMO_REVIEWED_AT
+    _write_review_csv_rows(path, headers, rows)
+
+
+def _read_review_csv_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
+    with path.open(encoding="utf-8", newline="") as csv_file:
+        reader = csv.DictReader(csv_file)
+        fieldnames = reader.fieldnames or []
+        return list(fieldnames), list(reader)
+
+
+def _write_review_csv_rows(
+    path: Path,
+    headers: Sequence[str],
+    rows: Sequence[Mapping[str, str]],
+) -> None:
+    with path.open("w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=list(headers), lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_demo_summary(output_path: Path, trust_bundle_dir: Path) -> None:
+    summary = {
+        "flow": "demo-pilot",
+        "inputs": {
+            "type": "synthetic_examples",
+            "customer_data": False,
+            "network_required": False,
+        },
+        "outputs": {
+            "pilot_report": REPORT_JSON_NAME,
+            "reviewed_report": "reviewed/%s" % REVIEWED_REPORT_JSON_NAME,
+            "evidence_store": "evidence_store.json",
+            "questionnaire": "questionnaire/%s" % QUESTIONNAIRE_JSON_NAME,
+            "reviewed_questionnaire": "questionnaire-reviewed/%s" % REVIEWED_REPORT_JSON_NAME,
+            "supplier_risk": "risk/%s" % SUPPLIER_RISK_JSON_NAME,
+            "sbom_inventory": "sbom_inventory.json",
+            "sbom_findings": "sbom_findings.json",
+            "supplier_profile_contract": "supplier_profile_contract.normalized.json",
+            "trust_bundle": trust_bundle_dir.name,
+        },
+    }
+    _write_json(output_path / DEMO_PILOT_SUMMARY_NAME, summary)
+
+
+def _write_json(path: Path, payload: Mapping[str, object]) -> None:
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _run_review_apply(args: argparse.Namespace) -> int:
@@ -576,31 +806,37 @@ def _build_review_rows(report: Mapping[str, Any]) -> list[dict[str, str]]:
             category = str(item["category"])
             quality = str(item["quality"])
             signals = [str(signal) for signal in cast(Sequence[object], item["quality_signals"])]
-            rows.append(
-                {
-                    "finding_id": str(item["finding_id"]),
-                    "category": category,
-                    "control_area": _humanize_category(category),
-                    "document": document_name,
-                    "evidence_level": quality,
-                    "status": _review_status(quality),
-                    "finding": str(item["source_citation"]),
-                    "recommended_manual_check": str(
-                        item.get(
-                            "recommended_manual_check",
-                            _manual_check_for_item(quality, signals),
-                        )
-                    ),
-                    "source_reference": str(
-                        item.get("source_reference", "%s#evidence-%d" % (document_name, item_index))
-                    ),
-                    "review_status": "",
-                    "review_note": "",
-                    "reviewer": "",
-                    "reviewed_at": "",
-                }
-            )
+            row = {
+                "finding_id": str(item["finding_id"]),
+                "category": category,
+                "control_area": _humanize_category(category),
+                "document": document_name,
+                "evidence_level": quality,
+                "status": _review_status(quality),
+                "finding": str(item["source_citation"]),
+                "recommended_manual_check": str(
+                    item.get(
+                        "recommended_manual_check",
+                        _manual_check_for_item(quality, signals),
+                    )
+                ),
+                "source_reference": str(
+                    item.get("source_reference", "%s#evidence-%d" % (document_name, item_index))
+                ),
+                "review_status": "",
+                "review_note": "",
+                "reviewer": "",
+                "reviewed_at": "",
+            }
+            rows.append(_safe_review_csv_row(row))
     return rows
+
+
+def _safe_review_csv_row(row: Mapping[str, str]) -> dict[str, str]:
+    return {
+        key: review_module.safe_review_csv_cell(value)
+        for key, value in row.items()
+    }
 
 
 def _humanize_category(category: str) -> str:
