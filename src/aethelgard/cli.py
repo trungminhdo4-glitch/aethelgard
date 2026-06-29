@@ -30,6 +30,7 @@ from aethelgard.redaction_preflight import (
 from aethelgard.review import ReviewApplyError, apply_review_csv
 from aethelgard.supplier_risk import SupplierRiskError, run_supplier_risk
 from aethelgard.triage import run_eval, run_triage
+from aethelgard.trust_bundle import TrustBundleError, build_trust_bundle_preview
 
 REVIEW_CSV_NAME: Final[str] = review_module.REVIEW_CSV_NAME
 REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = review_module.REVIEW_CSV_COLUMNS
@@ -184,6 +185,43 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Control catalog directory. Defaults to data/control_catalogs.",
     )
+
+    trust_bundle_parser = subparsers.add_parser(
+        "trust-bundle",
+        help="Build metadata-only customer/auditor preview bundles.",
+    )
+    trust_bundle_subparsers = trust_bundle_parser.add_subparsers(
+        dest="trust_bundle_command",
+        required=True,
+    )
+    trust_bundle_build_parser = trust_bundle_subparsers.add_parser(
+        "build",
+        help="Build a deterministic metadata-only trust bundle preview.",
+    )
+    trust_bundle_build_parser.add_argument(
+        "--evidence",
+        required=True,
+        type=Path,
+        help="Metadata-only evidence store JSON.",
+    )
+    trust_bundle_build_parser.add_argument(
+        "--supplier-risk",
+        required=True,
+        type=Path,
+        help="supplier_risk.json from supplier-risk.",
+    )
+    trust_bundle_build_parser.add_argument(
+        "--questionnaire",
+        required=True,
+        type=Path,
+        help="questionnaire or reviewed questionnaire JSON.",
+    )
+    trust_bundle_build_parser.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="Output trust bundle preview directory.",
+    )
     return parser
 
 
@@ -214,6 +252,8 @@ def main(argv: list[str] | None = None) -> int:
         exit_code = _run_supplier_risk(args)
     elif args.command == "evidence":
         exit_code = _run_evidence(args)
+    elif args.command == "trust-bundle":
+        exit_code = _run_trust_bundle(args)
     else:
         parser.error("unknown command: %s" % args.command)
         exit_code = 1
@@ -322,6 +362,27 @@ def _run_evidence_from_reviewed_report(args: argparse.Namespace) -> int:
         )
     except (ControlCatalogError, EvidenceBridgeError, EvidenceStoreError, ReviewApplyError) as exc:
         print("evidence from-reviewed-report failed: %s" % exc, file=sys.stderr)
+        return C_SCRM_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_trust_bundle(args: argparse.Namespace) -> int:
+    if args.trust_bundle_command == "build":
+        return _run_trust_bundle_build(args)
+    raise TrustBundleError("unknown trust-bundle command: %s" % args.trust_bundle_command)
+
+
+def _run_trust_bundle_build(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        build_trust_bundle_preview(
+            cast(Path, args.evidence),
+            cast(Path, args.supplier_risk),
+            cast(Path, args.questionnaire),
+            output_path,
+        )
+    except (EvidenceStoreError, ReviewApplyError, TrustBundleError) as exc:
+        print("trust-bundle build failed: %s" % exc, file=sys.stderr)
         return C_SCRM_ERROR_EXIT_CODE
     return 0
 

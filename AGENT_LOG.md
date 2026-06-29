@@ -87,3 +87,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Review von `7fe5673`, C-SCRM-Hardening, Sub-Agent-Regel und Bridge von reviewed Findings in Evidence Store |
 | Commit | - |
 | Ergebnis | OK: `py_compile`, `pytest` (254 passed, 1 skipped, 17 subtests), `ruff`, `mypy src`, Fixture-Safety, Pilot-Readiness und CLI-Smoke gruen; kein Live-Netzwerk, keine echten Kundendaten, keine Secrets, kein Push |
+
+### 2026-06-29 12:31 - Trust bundle preview workflow
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Review von `bd706ec`, E2E-C-SCRM-Workflow, `reviewed`-Status-Kompatibilitaet und metadata-only Trust-Bundle-Preview |
+| Commit | - |
+| Ergebnis | OK: `py_compile`, `pytest` (261 passed, 1 skipped, 17 subtests), `ruff`, `mypy src`, Fixture-Safety, Pilot-Readiness und `git diff --check` gruen; 2 Read-Only-Sub-Agenten genutzt; kein Live-Netzwerk, keine echten Kundendaten, keine Secrets, kein Push |

@@ -130,6 +130,41 @@ def test_review_apply_writes_outputs_and_applies_statuses(
     assert "False Positive" in markdown
 
 
+def test_review_apply_accepts_reviewed_status_in_strict_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    pilot_dir = tmp_path / "pilot"
+    review_csv = _run_pilot(pilot_dir)
+    headers, rows = _read_review_rows(review_csv)
+    rows[0]["review_status"] = "reviewed"
+    rows[0]["review_note"] = "Evidence reviewed for metadata-only handover."
+    _write_review_rows(review_csv, headers, rows)
+
+    reviewed_dir = tmp_path / "reviewed"
+    exit_code = main(
+        [
+            "review-apply",
+            "--report",
+            str(pilot_dir / REPORT_JSON_NAME),
+            "--review-csv",
+            str(review_csv),
+            "--out",
+            str(reviewed_dir),
+            "--strict",
+        ]
+    )
+
+    reviewed_by_id = _findings_by_id(reviewed_dir / REVIEWED_REPORT_JSON_NAME)
+    summary = _read_json(reviewed_dir / REVIEW_SUMMARY_JSON_NAME)
+    status_counts = cast(dict[str, int], summary["status_counts"])
+
+    assert exit_code == 0
+    assert reviewed_by_id[rows[0]["finding_id"]]["review_status"] == "reviewed"
+    assert status_counts["reviewed"] == 1
+
+
 def test_review_apply_unknown_status_strict_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -240,7 +275,7 @@ def test_review_apply_masks_secret_like_review_note(
     review_csv = _run_pilot(pilot_dir)
     headers, rows = _read_review_rows(review_csv)
     rows[0]["review_status"] = "accepted"
-    rows[0]["review_note"] = "Do not share api_key=sk_live_123456789012345 with anyone."
+    rows[0]["review_note"] = "Do not share api_key=placeholder with anyone."
     _write_review_rows(review_csv, headers, rows)
 
     reviewed_dir = tmp_path / "reviewed"
@@ -261,7 +296,7 @@ def test_review_apply_masks_secret_like_review_note(
     note = str(reviewed_by_id[rows[0]["finding_id"]]["review_note"])
 
     assert exit_code == 0
-    assert "sk_live_123456789012345" not in note
+    assert "placeholder" not in note
     assert "[token:redacted]" in note
     warnings = cast(list[str], summary["warnings"])
     assert any("sensitive marker masked" in warning for warning in warnings)

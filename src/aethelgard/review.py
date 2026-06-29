@@ -36,6 +36,7 @@ REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = (
 REVIEW_STATUS_VALUES: Final[tuple[str, ...]] = (
     "open",
     "accepted",
+    "reviewed",
     "false_positive",
     "needs_evidence",
     "not_applicable",

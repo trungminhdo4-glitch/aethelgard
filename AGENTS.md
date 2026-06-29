@@ -52,6 +52,7 @@ src/aethelgard/
   evidence_bridge.py       # Reviewed Findings -> Evidence Store Bridge
   questionnaire.py         # CSV-Frageimport, Frage->Controls, Evidence-basierte Drafts
   supplier_risk.py         # Deterministischer Supplier-Risk-Score + JSON/MD-Report
+  trust_bundle.py          # Metadata-only Trust-Bundle-Preview-Export
   mvp1/
     __init__.py            # Public API Re-Exports (Schemas + Parser + PDF + Classifier)
     schemas.py             # pydantic v2 Schemas (ComplianceEvidence)
@@ -59,7 +60,7 @@ src/aethelgard/
     pdf_handler.py         # PDF Page-Streaming (optional pypdf)
     classifier.py          # Klassifikations-Engine (deterministische Heuristik)
   audit.py                 # Append-only JSONL Run-Ledger (Metadaten, keine Inhalte)
-  cli.py                   # CLI: triage + eval + pilot-run + review-apply + C-SCRM
+  cli.py                   # CLI: triage + eval + pilot-run + review-apply + C-SCRM + trust-bundle
   public_sources.py        # Pure URL-Check-Klassifikation fuer offizielle Quellen
   redaction_preflight.py   # Lokaler Sensitive-Content-Preflight mit Maskierung
   review.py                # Human-Review-Import, reviewed reports, review summary
@@ -121,6 +122,7 @@ tests/mvp1/
 | `evidence_bridge.py` | Reviewte Findings als Evidence-Metadaten exportieren | Rohzitate, private Pfade, nicht-akzeptierte Findings uebernehmen |
 | `questionnaire.py` | CSV-Fragen, heuristisches Control-Mapping, Evidence-Drafts | Antworten ohne Evidence erzeugen |
 | `supplier_risk.py` | Deterministischer Supplier-Risk-Score | Finanz-/Compliance-Beratung, Live-Daten |
+| `trust_bundle.py` | Deterministischer metadata-only Bundle-Preview | Rohzitate, Draft-Antworten, private Pfade, Compliance-Claims exportieren |
 
 ### Sub-Agent-Regel
 
@@ -221,7 +223,7 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **254 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
+- **261 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
 - Externe IO (Dateisystem, pypdf) zu 100 % gemockt via `unittest.mock`
 - AAA-Pattern (Arrange, Act, Assert)
 - Test-Klassen (document_parser): `TestComplianceEvidenceSchema`,
@@ -263,7 +265,11 @@ from aethelgard.mvp1 import (
   Supplier-Risk-Scores.
 - Evidence-Bridge-Tests: `test_evidence_bridge.py` prueft accepted/reviewed
   Findings, rejected/needs-evidence Ausschluss, stabile Evidence-IDs,
-  fehlende/doppelte `finding_id`, private Rohfelder und Questionnaire-Integration.
+  fehlende/doppelte `finding_id`, private Rohfelder und Questionnaire-Integration
+  inklusive E2E-Flow bis Review-Apply und Supplier-Risk.
+- Trust-Bundle-Tests: `test_trust_bundle.py` prueft erwartete Preview-Dateien,
+  deterministisches Manifest, konservative Statuswerte, Missing-Input-Fehler und
+  Ausschluss von Rohclaims, Fragen, Drafts, privaten Pfaden und Compliance-Claims.
 
 ## Bekannte Gotchas
 
@@ -326,7 +332,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Human Review Apply Flow | OK: stabile `finding_id`, `review-apply`, `reviewed_report.json`, `reviewed_report.md`, `review_summary.json`; strict/nonstrict CSV-Validation und Review-Notiz-Maskierung | 2026-06-28 |
 | Technical C-SCRM MVP | OK: lokale Control-Kataloge, Evidence Store, Questionnaire-Drafts mit Review-CSV und Supplier-Risk-Reports; keine Rohdaten/Secrets in Reports | 2026-06-29 |
 | Reviewed Evidence Bridge | OK: `evidence from-reviewed-report`, accepted/reviewed Findings -> Evidence Store, Questionnaire-Integration; rejected/needs-evidence ausgeschlossen | 2026-06-29 |
-| Tests | 254/254 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-29 |
+| Trust Bundle Preview | OK: `trust-bundle build` erzeugt deterministic metadata-only Preview (`manifest`, Evidence-Index, Questionnaire-/Risk-Summary, README); keine Rohzitate, Drafts, privaten Pfade oder Compliance-Claims | 2026-06-29 |
+| Tests | 261/261 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-29 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
@@ -335,7 +342,7 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
 | Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-29 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (18 Source-Dateien) | 2026-06-29 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (19 Source-Dateien) | 2026-06-29 |
 | Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)
