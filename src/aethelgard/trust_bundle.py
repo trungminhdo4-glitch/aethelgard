@@ -74,6 +74,11 @@ def build_trust_bundle_preview(
     evidence_path = Path(evidence_store_path)
     supplier_path = Path(supplier_risk_path)
     questionnaire_report_path = Path(questionnaire_path)
+    output_path = Path(out_dir)
+    _guard_sources_outside_output(
+        (evidence_path, supplier_path, questionnaire_report_path),
+        output_path,
+    )
     evidence_store = load_evidence_store(evidence_path)
     supplier_risk = _read_json(supplier_path, "supplier risk report")
     questionnaire = _read_json(questionnaire_report_path, "questionnaire report")
@@ -95,7 +100,6 @@ def build_trust_bundle_preview(
         source_hashes=source_hashes,
     )
 
-    output_path = Path(out_dir)
     _prepare_output_dir(output_path)
     _write_json(output_path / TRUST_BUNDLE_MANIFEST_NAME, manifest)
     _write_json(output_path / TRUST_BUNDLE_EVIDENCE_INDEX_NAME, evidence_index)
@@ -106,7 +110,12 @@ def build_trust_bundle_preview(
 
 
 def _build_evidence_index(records: Sequence[EvidenceRecord]) -> dict[str, object]:
-    items = tuple(_evidence_index_item(record) for record in records)
+    items = tuple(
+        sorted(
+            (_evidence_index_item(record) for record in records),
+            key=lambda item: str(item["evidence_id"]),
+        )
+    )
     status_counts = Counter(str(item["status"]) for item in items)
     return {
         "schema_version": TRUST_BUNDLE_SCHEMA_VERSION,
@@ -296,6 +305,14 @@ def _prepare_output_dir(path: Path) -> None:
             )
         return
     path.mkdir(parents=True, exist_ok=False)
+
+
+def _guard_sources_outside_output(source_paths: Sequence[Path], output_path: Path) -> None:
+    resolved_output = output_path.resolve()
+    for source_path in source_paths:
+        resolved_source = source_path.resolve()
+        if resolved_source == resolved_output or resolved_output in resolved_source.parents:
+            raise TrustBundleError("trust bundle input files must not be inside output directory")
 
 
 def _string_tuple(value: object) -> tuple[str, ...]:

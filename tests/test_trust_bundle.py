@@ -532,6 +532,39 @@ def test_trust_bundle_rejects_existing_output_with_unexpected_files(
     assert not (out_dir / TRUST_BUNDLE_MANIFEST_NAME).exists()
 
 
+def test_trust_bundle_rejects_source_file_inside_output_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    evidence_store, supplier_risk, questionnaire = _write_bundle_inputs(tmp_path)
+    out_dir = tmp_path / "bundle"
+    out_dir.mkdir()
+    questionnaire_alias = out_dir / TRUST_BUNDLE_QUESTIONNAIRE_SUMMARY_NAME
+    questionnaire_alias.write_text(questionnaire.read_text(encoding="utf-8"), encoding="utf-8")
+
+    exit_code = main(
+        [
+            "trust-bundle",
+            "build",
+            "--evidence",
+            str(evidence_store),
+            "--supplier-risk",
+            str(supplier_risk),
+            "--questionnaire",
+            str(questionnaire_alias),
+            "--out",
+            str(out_dir),
+        ]
+    )
+
+    assert exit_code == C_SCRM_ERROR_EXIT_CODE
+    assert questionnaire_alias.read_text(encoding="utf-8") == questionnaire.read_text(
+        encoding="utf-8"
+    )
+    assert not (out_dir / TRUST_BUNDLE_MANIFEST_NAME).exists()
+
+
 @pytest.mark.parametrize(
     "missing_input",
     ["evidence", "supplier-risk", "questionnaire"],

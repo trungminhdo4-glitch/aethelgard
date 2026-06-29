@@ -128,6 +128,22 @@ clear unsupported-format error. Findings are local metadata gaps only: missing v
 missing license, missing checksum/hash, unknown package identifier, and duplicate
 component.
 
+## Offline SBOM Demo
+
+This demo is fully offline and uses only the synthetic CycloneDX fixture in
+`examples/sbom/cyclonedx_demo.json`. It does not use customer data, live CVE feeds,
+network APIs, legal advice, audit attestation, or compliance confirmation.
+
+```powershell
+python -m aethelgard.cli sbom ingest --input examples/sbom/cyclonedx_demo.json --out reports/sbom-demo/sbom_inventory.json
+python -m aethelgard.cli sbom findings --input examples/sbom/cyclonedx_demo.json --out reports/sbom-demo/sbom_findings.json
+```
+
+Expected outputs:
+
+- `reports/sbom-demo/sbom_inventory.json`
+- `reports/sbom-demo/sbom_findings.json`
+
 ## Supplier Profile Contract
 
 ```powershell

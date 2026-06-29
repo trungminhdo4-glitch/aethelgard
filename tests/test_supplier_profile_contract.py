@@ -84,6 +84,25 @@ def test_supplier_profile_contract_invalid_criticality_fails(
     assert not out_path.exists()
 
 
+def test_supplier_profile_contract_invalid_relationship_type_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    input_path = tmp_path / "supplier_profile_contract.json"
+    out_path = tmp_path / "supplier_profile_contract.normalized.json"
+    profile = _valid_profile()
+    profile["relationship_type"] = "live_vendor"
+    _write_json(input_path, profile)
+
+    exit_code = main(
+        ["supplier-profile", "validate", "--input", str(input_path), "--out", str(out_path)]
+    )
+
+    assert exit_code == C_SCRM_ERROR_EXIT_CODE
+    assert not out_path.exists()
+
+
 def test_supplier_profile_contract_missing_supplier_id_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -101,6 +120,53 @@ def test_supplier_profile_contract_missing_supplier_id_fails(
 
     assert exit_code == C_SCRM_ERROR_EXIT_CODE
     assert not out_path.exists()
+
+
+def test_supplier_profile_contract_blocks_raw_evidence_references_deterministically(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    first_input_path = tmp_path / "supplier_profile_contract_a.json"
+    second_input_path = tmp_path / "supplier_profile_contract_b.json"
+    first_out_path = tmp_path / "supplier_profile_contract_a.normalized.json"
+    second_out_path = tmp_path / "supplier_profile_contract_b.normalized.json"
+    profile = _valid_profile()
+    profile["evidence_refs"] = ["RAW_EVIDENCE_SHOULD_NOT_EXPORT"]
+    _write_json(first_input_path, profile)
+    _write_json(second_input_path, profile)
+
+    first_exit = main(
+        [
+            "supplier-profile",
+            "validate",
+            "--input",
+            str(first_input_path),
+            "--out",
+            str(first_out_path),
+        ]
+    )
+    first_stderr = capsys.readouterr().err.replace(str(first_input_path), "<input>")
+    second_exit = main(
+        [
+            "supplier-profile",
+            "validate",
+            "--input",
+            str(second_input_path),
+            "--out",
+            str(second_out_path),
+        ]
+    )
+    second_stderr = capsys.readouterr().err.replace(str(second_input_path), "<input>")
+
+    assert first_exit == C_SCRM_ERROR_EXIT_CODE
+    assert second_exit == C_SCRM_ERROR_EXIT_CODE
+    assert first_stderr == second_stderr
+    assert "invalid supplier profile contract" in first_stderr
+    assert "RAW_EVIDENCE_SHOULD_NOT_EXPORT" not in first_stderr
+    assert not first_out_path.exists()
+    assert not second_out_path.exists()
 
 
 def test_supplier_profile_contract_blocks_private_and_raw_fields(

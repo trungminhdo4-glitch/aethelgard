@@ -103,3 +103,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Review von `275eba4`, Trust-Bundle-/Review-Contract-Hardening, CLI-E2E-Smoke, offline SBOM-Inventar und Supplier-Profile-Contract |
 | Commit | - |
 | Ergebnis | OK: `py_compile`, `pytest` (273 passed, 1 skipped, 17 subtests), `ruff`, `mypy src`, Fixture-Safety, Pilot-Readiness, `git diff --check` und Secret-Wertscan gruen; 2 Read-Only-Sub-Agenten genutzt; kein Live-Netzwerk, keine echten Kundendaten, keine Secrets, kein Push |
+
+### 2026-06-29 20:05 - Offline SBOM demo hardening
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Synthetische CycloneDX-Demo-Fixture, SBOM-Negativtests, Supplier-Profile-/Trust-Bundle-Regressionen und README-Demo-Flow |
+| Commit | - |
+| Ergebnis | OK: `py_compile`, `pytest` (285 passed, 1 skipped, 17 subtests), `ruff`, `mypy src`, Fixture-Safety inkl. Demo-Fixture, Pilot-Readiness, `git diff --check`, `git diff --cached --check` und Secret-Wertscan gruen; 3 Read-Only-Sub-Agenten genutzt; kein Live-Netzwerk, keine echten Kundendaten, keine Secrets |

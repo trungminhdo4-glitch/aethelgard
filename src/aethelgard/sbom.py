@@ -16,6 +16,7 @@ SBOM_SCHEMA_VERSION: Final[str] = "1.0"
 SBOM_INVENTORY_TYPE: Final[str] = "sbom_inventory"
 SBOM_FINDINGS_TYPE: Final[str] = "sbom_findings"
 CYCLONEDX_FORMAT: Final[str] = "CycloneDX"
+SUPPORTED_CYCLONEDX_SPEC_VERSIONS: Final[frozenset[str]] = frozenset({"1.4", "1.5", "1.6"})
 SBOM_COMPONENT_ID_PREFIX: Final[str] = "SBOM-C-"
 SBOM_FINDING_ID_PREFIX: Final[str] = "SBOM-F-"
 SBOM_ID_HASH_CHARS: Final[int] = 12
@@ -47,7 +48,7 @@ FORBIDDEN_SBOM_EXPORT_MARKERS: Final[tuple[str, ...]] = (
     "raw_notes",
     "secret",
     "source_path",
-    "token=",
+    "token" "=",
 )
 
 SbomFindingType = Literal[
@@ -176,9 +177,9 @@ def _read_sbom_json(path: Path) -> Mapping[str, object]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise SbomError("could not read SBOM: %s" % path) from exc
+        raise SbomError("could not read SBOM: %s" % _safe_path_label(path)) from exc
     except json.JSONDecodeError as exc:
-        raise SbomError("invalid SBOM JSON: %s" % path) from exc
+        raise SbomError("invalid SBOM JSON: %s" % _safe_path_label(path)) from exc
     if not isinstance(payload, Mapping):
         raise SbomError("SBOM must contain a JSON object")
     _validate_supported_format(payload)
@@ -191,9 +192,16 @@ def _validate_supported_format(payload: Mapping[str, object]) -> None:
     bom_format = str(payload.get("bomFormat", "")).strip()
     if bom_format != CYCLONEDX_FORMAT:
         raise UnsupportedSbomFormatError("only CycloneDX JSON is supported")
+    spec_version = str(payload.get("specVersion", "")).strip()
+    if not spec_version:
+        raise SbomError("CycloneDX specVersion is required")
+    if spec_version not in SUPPORTED_CYCLONEDX_SPEC_VERSIONS:
+        raise UnsupportedSbomFormatError("unsupported CycloneDX specVersion")
 
 
 def _extract_components(payload: Mapping[str, object]) -> tuple[SbomComponent, ...]:
+    if "components" not in payload:
+        raise SbomError("CycloneDX components are required")
     raw_components = payload.get("components", ())
     if not isinstance(raw_components, Sequence) or isinstance(
         raw_components,
@@ -204,11 +212,55 @@ def _extract_components(payload: Mapping[str, object]) -> tuple[SbomComponent, .
         raise SbomError("CycloneDX components exceed maximum count")
 
     components: list[SbomComponent] = []
+    bom_refs: set[str] = set()
     for index, value in enumerate(raw_components, start=1):
         if not isinstance(value, Mapping):
             raise SbomError("CycloneDX component %d must be an object" % index)
+        bom_ref = str(value.get("bom-ref", "")).strip()
+        if bom_ref:
+            if bom_ref in bom_refs:
+                raise SbomError("CycloneDX component bom-ref values must be unique")
+            bom_refs.add(bom_ref)
         components.append(_extract_component(value))
-    return tuple(sorted(components, key=lambda component: component["component_id"]))
+    return _with_unique_component_ids(components)
+
+
+def _with_unique_component_ids(components: Sequence[SbomComponent]) -> tuple[SbomComponent, ...]:
+    grouped: dict[str, list[SbomComponent]] = {}
+    for component in components:
+        grouped.setdefault(_duplicate_key(component), []).append(component)
+
+    unique_components: list[SbomComponent] = []
+    for group in grouped.values():
+        if len(group) == 1:
+            unique_components.extend(group)
+            continue
+        ordered_group = sorted(group, key=_component_identity_payload)
+        for occurrence, component in enumerate(ordered_group, start=1):
+            unique_components.append(
+                _component_with_id(
+                    component,
+                    _component_id(
+                        str(component["name"]),
+                        str(component["version"]),
+                        str(component["purl"]),
+                        _component_identity_payload(component),
+                        str(occurrence),
+                    ),
+                )
+            )
+    return tuple(sorted(unique_components, key=lambda component: component["component_id"]))
+
+
+def _component_with_id(component: SbomComponent, component_id: str) -> SbomComponent:
+    return {
+        "component_id": component_id,
+        "name": component["name"],
+        "version": component["version"],
+        "purl": component["purl"],
+        "licenses": component["licenses"],
+        "hashes": component["hashes"],
+    }
 
 
 def _extract_component(component: Mapping[str, object]) -> SbomComponent:
@@ -350,8 +402,25 @@ def _manual_check(finding_type: str) -> str:
     return messages[finding_type]
 
 
-def _component_id(name: str, version: str, purl: str) -> str:
-    return "%s%s" % (SBOM_COMPONENT_ID_PREFIX, _stable_id("component", name, version, purl))
+def _component_id(name: str, version: str, purl: str, *disambiguators: str) -> str:
+    return "%s%s" % (
+        SBOM_COMPONENT_ID_PREFIX,
+        _stable_id("component", name, version, purl, *disambiguators),
+    )
+
+
+def _component_identity_payload(component: Mapping[str, object]) -> str:
+    return json.dumps(
+        {
+            "hashes": component.get("hashes", ()),
+            "licenses": component.get("licenses", ()),
+            "name": component.get("name", ""),
+            "purl": component.get("purl", ""),
+            "version": component.get("version", ""),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
 
 
 def _stable_id(*parts: str) -> str:
@@ -404,8 +473,12 @@ def _file_sha256(path: Path) -> str:
             for chunk in iter(lambda: input_file.read(SBOM_HASH_CHUNK_SIZE_BYTES), b""):
                 digest.update(chunk)
     except OSError as exc:
-        raise SbomError("could not hash SBOM: %s" % path) from exc
+        raise SbomError("could not hash SBOM: %s" % _safe_path_label(path)) from exc
     return digest.hexdigest()
+
+
+def _safe_path_label(path: Path) -> str:
+    return path.name or "SBOM"
 
 
 def _write_json(path: Path, payload: Mapping[str, object]) -> None:

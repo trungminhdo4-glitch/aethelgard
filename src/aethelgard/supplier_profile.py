@@ -31,10 +31,12 @@ FORBIDDEN_SUPPLIER_PROFILE_MARKERS: Final[tuple[str, ...]] = (
     "debug.log",
     "internal_url",
     "nis2_compliant",
+    "raw_evidence",
     "raw_notes",
+    "raw_snippet",
     "secret",
     "source_path",
-    "token=",
+    "token" "=",
 )
 
 SupplierCriticality = Literal["low", "medium", "high", "critical"]
