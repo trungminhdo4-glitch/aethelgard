@@ -111,6 +111,7 @@ def run_questionnaire(
 def read_questionnaire_csv(path: Path | str) -> list[QuestionnaireQuestion]:
     """Import security questions from a CSV file."""
     questions: list[QuestionnaireQuestion] = []
+    seen_question_ids: set[str] = set()
     with Path(path).open(encoding="utf-8", newline="") as csv_file:
         reader = csv.DictReader(csv_file)
         fieldnames = reader.fieldnames or []
@@ -132,9 +133,16 @@ def read_questionnaire_csv(path: Path | str) -> list[QuestionnaireQuestion]:
                 raise QuestionnaireError(
                     "questionnaire row %d exceeds question_id length limit" % row_number
                 )
+            safe_question_id = _safe_output_text(question_id)
+            if safe_question_id in seen_question_ids:
+                raise QuestionnaireError(
+                    "questionnaire row %d duplicates question_id %s"
+                    % (row_number, safe_question_id)
+                )
+            seen_question_ids.add(safe_question_id)
             questions.append(
                 QuestionnaireQuestion(
-                    question_id=_safe_output_text(question_id),
+                    question_id=safe_question_id,
                     question=_safe_output_text(raw_question),
                     row_number=row_number,
                 )

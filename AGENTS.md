@@ -49,6 +49,7 @@ src/aethelgard/
   nis2_controls.py         # NIS2 Artikel-21(2)-Coverage-Referenzen + Report-Matrix
   control_catalog.py       # C-SCRM Control-Catalog-Loader + Cross-Map-Validator
   evidence_store.py        # Metadata-only Evidence Store, SHA-256, Secret-Path-Guards
+  evidence_bridge.py       # Reviewed Findings -> Evidence Store Bridge
   questionnaire.py         # CSV-Frageimport, Frage->Controls, Evidence-basierte Drafts
   supplier_risk.py         # Deterministischer Supplier-Risk-Score + JSON/MD-Report
   mvp1/
@@ -100,6 +101,7 @@ scripts/
   check_pilot_readiness.py # kontrollierter Paid-Pilot Gate-Report
 tests/fixtures/public_nis2/ # 17 synthetische Fixtures + golden_labels.json
 tests/fixtures/customer_like_nis2/ # 8 customer-like synthetische Fixtures + Labels
+tests/test_evidence_bridge.py # Reviewed Findings -> Evidence Store Bridge
 tests/mvp1/
   test_document_parser.py  # 69 Unit-Tests, vollstaendig gemockt
   test_pdf_handler.py      # 40 Unit-Tests, pypdf gemockt
@@ -116,8 +118,23 @@ tests/mvp1/
 | `classifier.py` | Deterministische Heuristik, Compliance-Mapping | Mutationen, IO, externe Modelle (Stufe 1 rein Python, Stufe 2 ONNX-prep) |
 | `control_catalog.py` | Lokale Control-Kataloge und Cross-Map-Validierung | Rechts-/Audit-Claims, externe Quellen zur Laufzeit |
 | `evidence_store.py` | Metadata-only Evidence Records, Hashes, Control-Refs | Rohdaten/Secrets in Reports ausgeben |
+| `evidence_bridge.py` | Reviewte Findings als Evidence-Metadaten exportieren | Rohzitate, private Pfade, nicht-akzeptierte Findings uebernehmen |
 | `questionnaire.py` | CSV-Fragen, heuristisches Control-Mapping, Evidence-Drafts | Antworten ohne Evidence erzeugen |
 | `supplier_risk.py` | Deterministischer Supplier-Risk-Score | Finanz-/Compliance-Beratung, Live-Daten |
+
+### Sub-Agent-Regel
+
+- Standard: Hauptagent arbeitet selbst und bleibt fuer Integration, Git und Validierung verantwortlich.
+- Sub-Agenten sind erlaubt, wenn sie den Hauptagenten messbar entlasten oder unabhaengige Pruefung liefern.
+- Sub-Agenten nur fuer klar abgegrenzte Read-Only-Aufgaben wie Testluecken suchen, Code-Review,
+  Mapping-Konsistenz oder Security-Fixture-Scan.
+- Maximal 2 Sub-Agenten pro Run, ausser der Nutzer erlaubt explizit mehr.
+- Keine Sub-Agenten fuer Git-Write-Aktionen, Commits, Pushes, Secrets, private Rohdaten, Cookies,
+  Datenbanken, Logs oder Live-Netzwerk.
+- Jeder Sub-Agent bekommt Scope, verbotene Bereiche und Output-Limit.
+- Wenn Sub-Agenten nicht verfuegbar sind oder haengen, uebernimmt der Hauptagent die Rolle selbst und
+  dokumentiert kurz.
+- Sub-Agenten duerfen keine Owner-Gates ueberschreiben.
 
 ### Public API
 
@@ -204,7 +221,7 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **233 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
+- **254 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
 - Externe IO (Dateisystem, pypdf) zu 100 % gemockt via `unittest.mock`
 - AAA-Pattern (Arrange, Act, Assert)
 - Test-Klassen (document_parser): `TestComplianceEvidenceSchema`,
@@ -244,6 +261,9 @@ from aethelgard.mvp1 import (
   gueltige Cross-Framework-Refs, `needs_evidence` ohne Evidence, Drafts nur
   mit `evidence_refs`, Secret-/PII-Maskierung in Reports und deterministische
   Supplier-Risk-Scores.
+- Evidence-Bridge-Tests: `test_evidence_bridge.py` prueft accepted/reviewed
+  Findings, rejected/needs-evidence Ausschluss, stabile Evidence-IDs,
+  fehlende/doppelte `finding_id`, private Rohfelder und Questionnaire-Integration.
 
 ## Bekannte Gotchas
 
@@ -305,7 +325,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Pilot Run Flow | OK: redaction preflight, `pilot-run`, Demo-Bundle und `review_items.csv`; `reports/pilot-demo`: 8/8 Dokumente, 57 Evidenzen, Preflight `pass` | 2026-06-28 |
 | Human Review Apply Flow | OK: stabile `finding_id`, `review-apply`, `reviewed_report.json`, `reviewed_report.md`, `review_summary.json`; strict/nonstrict CSV-Validation und Review-Notiz-Maskierung | 2026-06-28 |
 | Technical C-SCRM MVP | OK: lokale Control-Kataloge, Evidence Store, Questionnaire-Drafts mit Review-CSV und Supplier-Risk-Reports; keine Rohdaten/Secrets in Reports | 2026-06-29 |
-| Tests | 233/233 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-29 |
+| Reviewed Evidence Bridge | OK: `evidence from-reviewed-report`, accepted/reviewed Findings -> Evidence Store, Questionnaire-Integration; rejected/needs-evidence ausgeschlossen | 2026-06-29 |
+| Tests | 254/254 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-29 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
@@ -314,7 +335,7 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
 | Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-29 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (17 Source-Dateien) | 2026-06-29 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (18 Source-Dateien) | 2026-06-29 |
 | Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)

@@ -16,6 +16,10 @@ from aethelgard.control_catalog import (
     build_catalog_validation_report,
     load_control_catalog_bundle,
 )
+from aethelgard.evidence_bridge import (
+    EvidenceBridgeError,
+    bridge_reviewed_report_to_evidence_store,
+)
 from aethelgard.evidence_store import EvidenceStoreError
 from aethelgard.questionnaire import QuestionnaireError, run_questionnaire
 from aethelgard.redaction_preflight import (
@@ -149,6 +153,37 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional evidence or reviewed report JSON for open finding counts.",
     )
     supplier_parser.add_argument("--out", required=True, type=Path, help="Output directory.")
+
+    evidence_parser = subparsers.add_parser(
+        "evidence",
+        help="Build metadata-only evidence stores from reviewed local artifacts.",
+    )
+    evidence_subparsers = evidence_parser.add_subparsers(
+        dest="evidence_command",
+        required=True,
+    )
+    reviewed_parser = evidence_subparsers.add_parser(
+        "from-reviewed-report",
+        help="Convert accepted reviewed findings into an evidence store JSON file.",
+    )
+    reviewed_parser.add_argument(
+        "--input",
+        required=True,
+        type=Path,
+        help="reviewed_report.json from review-apply.",
+    )
+    reviewed_parser.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="Output evidence store JSON file.",
+    )
+    reviewed_parser.add_argument(
+        "--catalog-dir",
+        type=Path,
+        default=None,
+        help="Control catalog directory. Defaults to data/control_catalogs.",
+    )
     return parser
 
 
@@ -177,6 +212,8 @@ def main(argv: list[str] | None = None) -> int:
         exit_code = _run_questionnaire(args)
     elif args.command == "supplier-risk":
         exit_code = _run_supplier_risk(args)
+    elif args.command == "evidence":
+        exit_code = _run_evidence(args)
     else:
         parser.error("unknown command: %s" % args.command)
         exit_code = 1
@@ -265,6 +302,26 @@ def _run_supplier_risk(args: argparse.Namespace) -> int:
         )
     except (SupplierRiskError, ReviewApplyError) as exc:
         print("supplier-risk failed: %s" % exc, file=sys.stderr)
+        return C_SCRM_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_evidence(args: argparse.Namespace) -> int:
+    if args.evidence_command == "from-reviewed-report":
+        return _run_evidence_from_reviewed_report(args)
+    raise EvidenceBridgeError("unknown evidence command: %s" % args.evidence_command)
+
+
+def _run_evidence_from_reviewed_report(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        bridge_reviewed_report_to_evidence_store(
+            cast(Path, args.input),
+            output_path,
+            catalog_dir=cast(Path | None, args.catalog_dir),
+        )
+    except (ControlCatalogError, EvidenceBridgeError, EvidenceStoreError, ReviewApplyError) as exc:
+        print("evidence from-reviewed-report failed: %s" % exc, file=sys.stderr)
         return C_SCRM_ERROR_EXIT_CODE
     return 0
 

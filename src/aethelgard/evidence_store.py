@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -14,6 +14,7 @@ from aethelgard.control_catalog import ControlCatalogBundle
 from aethelgard.redaction_preflight import has_sensitive_markers, mask_sensitive_text
 
 EvidenceType = Literal["document", "policy", "attestation", "finding", "questionnaire", "sbom"]
+EvidenceSourceType = Literal["file", "reviewed_report"]
 EvidenceValidity = Literal["current", "unknown", "expired", "superseded"]
 
 EVIDENCE_STORE_SCHEMA_VERSION: Final[str] = "1.0"
@@ -28,13 +29,16 @@ EVIDENCE_ID_PREFIX: Final[str] = "E-"
 SHA256_PATTERN: Final[str] = r"^[a-f0-9]{64}$"
 EVIDENCE_ID_PATTERN: Final[str] = r"^[A-Za-z0-9_.:-]+$"
 FORBIDDEN_EVIDENCE_SUFFIXES: Final[frozenset[str]] = frozenset(
-    {".db", ".sqlite", ".sqlite3", ".log"}
+    {".db", ".db-shm", ".db-wal", ".sqlite", ".sqlite-shm", ".sqlite-wal", ".sqlite3", ".log"}
 )
 FORBIDDEN_EVIDENCE_NAME_MARKERS: Final[tuple[str, ...]] = (
     ".env",
+    ".log.",
     "credential",
     "credentials",
     "cookie",
+    "cookies",
+    "database",
     "private-config",
     "secret",
     "secrets",
@@ -61,6 +65,18 @@ class EvidenceRecord(BaseModel):
     )
     type: EvidenceType
     source_path: str = Field(min_length=1, max_length=MAX_EVIDENCE_SOURCE_CHARS)
+    source_type: EvidenceSourceType | None = None
+    source_report: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_EVIDENCE_SOURCE_CHARS,
+    )
+    source_finding_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_EVIDENCE_ID_CHARS,
+        pattern=EVIDENCE_ID_PATTERN,
+    )
     sha256: str = Field(
         min_length=SHA256_HEX_CHARS,
         max_length=SHA256_HEX_CHARS,
@@ -69,12 +85,21 @@ class EvidenceRecord(BaseModel):
     mapped_controls: tuple[str, ...] = Field(min_length=1)
     claims: tuple[str, ...] = Field(default=())
     validity: EvidenceValidity = "unknown"
+    review_status: str | None = Field(default=None, min_length=1, max_length=MAX_EVIDENCE_ID_CHARS)
     review_required: bool = True
+    requires_human_review: bool | None = None
 
     @field_validator("mapped_controls", "claims", mode="before")
     @classmethod
     def _normalize_text_tuple(cls, value: object) -> tuple[str, ...]:
         return _normalize_text_tuple(value)
+
+    @field_validator("source_path", "source_report")
+    @classmethod
+    def _validate_safe_source_labels(cls, value: str | None) -> str | None:
+        if value is not None:
+            _validate_safe_source_label(value)
+        return value
 
     @field_validator("claims")
     @classmethod
@@ -115,7 +140,10 @@ def load_evidence_store(
         raise EvidenceStoreError("invalid evidence store JSON: %s" % store_path) from exc
     if not isinstance(payload, Mapping):
         raise EvidenceStoreError("evidence store must contain a JSON object")
-    store = EvidenceStoreDocument.model_validate(payload)
+    try:
+        store = EvidenceStoreDocument.model_validate(payload)
+    except ValueError as exc:
+        raise EvidenceStoreError("invalid evidence store: %s" % store_path) from exc
     validate_evidence_store(store, catalog_bundle=catalog_bundle)
     return store
 
@@ -183,7 +211,8 @@ def write_evidence_store(path: Path | str, store: EvidenceStoreDocument) -> None
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(
-        json.dumps(store.model_dump(mode="json"), indent=2, sort_keys=True) + "\n",
+        json.dumps(store.model_dump(mode="json", exclude_none=True), indent=2, sort_keys=True)
+        + "\n",
         encoding="utf-8",
     )
 
@@ -202,13 +231,10 @@ def safe_claims(record: EvidenceRecord) -> tuple[str, ...]:
 def _guard_allowed_source_path(path: Path) -> None:
     if not path.is_file():
         raise EvidenceStoreError("evidence source must be an existing file: %s" % path)
-    lowered_name = path.name.lower()
-    if path.suffix.lower() in FORBIDDEN_EVIDENCE_SUFFIXES:
-        raise EvidenceStoreError("forbidden evidence source suffix: %s" % path.suffix)
-    if lowered_name == ".env" or lowered_name.startswith(".env."):
-        raise EvidenceStoreError("forbidden secret-like evidence source path")
-    if any(marker in lowered_name for marker in FORBIDDEN_EVIDENCE_NAME_MARKERS):
-        raise EvidenceStoreError("forbidden secret-like evidence source path")
+    try:
+        _validate_source_path_parts(path.parts)
+    except ValueError as exc:
+        raise EvidenceStoreError(str(exc)) from exc
     if path.stat().st_size > MAX_EVIDENCE_FILE_BYTES:
         raise EvidenceStoreError("evidence source exceeds file size limit: %s" % path)
 
@@ -234,6 +260,36 @@ def _build_evidence_id(digest: str, mapped_controls: Sequence[str]) -> str:
     basis = "%s\n%s" % (digest, "\n".join(sorted(mapped_controls)))
     short_hash = hashlib.sha256(basis.encode("utf-8")).hexdigest()[:EVIDENCE_ID_HASH_CHARS]
     return "%s%s" % (EVIDENCE_ID_PREFIX, short_hash)
+
+
+def _validate_safe_source_label(value: str) -> None:
+    label = value.strip()
+    if not label:
+        raise ValueError("evidence source label must not be empty")
+    if PureWindowsPath(label).is_absolute() or PurePosixPath(label).is_absolute():
+        raise ValueError("evidence source label must not be an absolute path")
+    parts = tuple(part for part in label.replace("\\", "/").split("/") if part and part != ".")
+    if not parts:
+        raise ValueError("evidence source label must contain a file label")
+    if any(part == ".." for part in parts):
+        raise ValueError("evidence source label must not contain parent traversal")
+    _validate_source_path_parts(parts)
+
+
+def _validate_source_path_parts(parts: Sequence[str]) -> None:
+    for part in parts:
+        lowered = part.lower()
+        if _is_forbidden_source_part(lowered):
+            raise ValueError("forbidden secret-like evidence source path")
+
+
+def _is_forbidden_source_part(lowered_part: str) -> bool:
+    if lowered_part == ".env" or lowered_part.startswith(".env."):
+        return True
+    if any(marker in lowered_part for marker in FORBIDDEN_EVIDENCE_NAME_MARKERS):
+        return True
+    suffix = PureWindowsPath(lowered_part).suffix or PurePosixPath(lowered_part).suffix
+    return suffix in FORBIDDEN_EVIDENCE_SUFFIXES
 
 
 def _normalize_text_tuple(value: object) -> tuple[str, ...]:

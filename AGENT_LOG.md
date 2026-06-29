@@ -79,3 +79,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Control-Kataloge, Evidence Store, Questionnaire-Drafts mit Review-CSV und deterministischer Supplier-Risk-Score |
 | Commit | - |
 | Ergebnis | OK: `py_compile`, `pytest` (233 passed, 1 skipped, 17 subtests), `ruff`, `mypy src`, Fixture-Safety und Pilot-Readiness gruen; kein Live-Netzwerk, keine echten Kundendaten, keine Secrets, kein Push |
+
+### 2026-06-29 03:05 - Reviewed evidence bridge
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Review von `7fe5673`, C-SCRM-Hardening, Sub-Agent-Regel und Bridge von reviewed Findings in Evidence Store |
+| Commit | - |
+| Ergebnis | OK: `py_compile`, `pytest` (254 passed, 1 skipped, 17 subtests), `ruff`, `mypy src`, Fixture-Safety, Pilot-Readiness und CLI-Smoke gruen; kein Live-Netzwerk, keine echten Kundendaten, keine Secrets, kein Push |
