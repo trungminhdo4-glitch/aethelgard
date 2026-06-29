@@ -1,0 +1,41 @@
+{
+  "map_id": "scrm_mvp_cross_framework_map",
+  "version": "2026-06-29",
+  "mappings": [
+    {
+      "source_control_id": "NIS2-SCRM-01",
+      "maps_to": [
+        "DIN27076-L-01"
+      ],
+      "relationship": "supports"
+    },
+    {
+      "source_control_id": "NIS2-SCRM-02",
+      "maps_to": [
+        "DIN27076-L-05"
+      ],
+      "relationship": "supports"
+    },
+    {
+      "source_control_id": "NIS2-SCRM-03",
+      "maps_to": [
+        "DIN27076-L-04"
+      ],
+      "relationship": "supports"
+    },
+    {
+      "source_control_id": "NIS2-SCRM-04",
+      "maps_to": [
+        "DIN27076-L-02"
+      ],
+      "relationship": "supports"
+    },
+    {
+      "source_control_id": "NIS2-SCRM-05",
+      "maps_to": [
+        "DIN27076-L-03"
+      ],
+      "relationship": "supports"
+    }
+  ]
+}

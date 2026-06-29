@@ -9,33 +9,29 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final, cast
 
+from aethelgard import review as review_module
 from aethelgard.audit import append_audit_entry, build_audit_entry
+from aethelgard.control_catalog import (
+    ControlCatalogError,
+    build_catalog_validation_report,
+    load_control_catalog_bundle,
+)
+from aethelgard.evidence_store import EvidenceStoreError
+from aethelgard.questionnaire import QuestionnaireError, run_questionnaire
 from aethelgard.redaction_preflight import (
     build_skipped_preflight_report,
     run_redaction_preflight,
     write_preflight_reports,
 )
 from aethelgard.review import ReviewApplyError, apply_review_csv
+from aethelgard.supplier_risk import SupplierRiskError, run_supplier_risk
 from aethelgard.triage import run_eval, run_triage
 
-REVIEW_CSV_NAME: Final[str] = "review_items.csv"
+REVIEW_CSV_NAME: Final[str] = review_module.REVIEW_CSV_NAME
+REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = review_module.REVIEW_CSV_COLUMNS
 PREFLIGHT_BLOCK_EXIT_CODE: Final[int] = 3
 REVIEW_APPLY_ERROR_EXIT_CODE: Final[int] = 4
-REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = (
-    "finding_id",
-    "category",
-    "control_area",
-    "document",
-    "evidence_level",
-    "status",
-    "finding",
-    "recommended_manual_check",
-    "source_reference",
-    "review_status",
-    "review_note",
-    "reviewer",
-    "reviewed_at",
-)
+C_SCRM_ERROR_EXIT_CODE: Final[int] = 5
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -99,6 +95,60 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Fail on unknown review statuses or unknown finding IDs.",
     )
+
+    catalog_parser = subparsers.add_parser(
+        "validate-controls",
+        help="Validate local C-SCRM control catalogs and cross-framework mappings.",
+    )
+    catalog_parser.add_argument(
+        "--catalog-dir",
+        type=Path,
+        default=None,
+        help="Control catalog directory. Defaults to data/control_catalogs.",
+    )
+
+    questionnaire_parser = subparsers.add_parser(
+        "questionnaire",
+        help="Map security-question CSV rows to controls and draft answers from evidence.",
+    )
+    questionnaire_parser.add_argument("--questions", required=True, type=Path, help="Question CSV.")
+    questionnaire_parser.add_argument(
+        "--evidence-store",
+        required=True,
+        type=Path,
+        help="Metadata-only evidence store JSON.",
+    )
+    questionnaire_parser.add_argument("--out", required=True, type=Path, help="Output directory.")
+    questionnaire_parser.add_argument(
+        "--catalog-dir",
+        type=Path,
+        default=None,
+        help="Control catalog directory. Defaults to data/control_catalogs.",
+    )
+
+    supplier_parser = subparsers.add_parser(
+        "supplier-risk",
+        help="Score supplier risk from profile, questionnaire status, and open findings.",
+    )
+    supplier_parser.add_argument(
+        "--profile",
+        required=True,
+        type=Path,
+        help="Supplier profile JSON.",
+    )
+    supplier_parser.add_argument(
+        "--questionnaire-report",
+        required=True,
+        type=Path,
+        help="questionnaire_answers.json from the questionnaire command.",
+    )
+    supplier_parser.add_argument(
+        "--findings-report",
+        type=Path,
+        default=None,
+        help="Optional evidence or reviewed report JSON for open finding counts.",
+    )
+    supplier_parser.add_argument("--out", required=True, type=Path, help="Output directory.")
     return parser
 
 
@@ -111,22 +161,26 @@ def main(argv: list[str] | None = None) -> int:
         result = run_triage(args.input, args.out)
         if args.audit:
             _append_triage_audit(args.input, args.out, result)
-        return int(result["summary"]["exit_code"])
-
-    if args.command == "eval":
+        exit_code = int(result["summary"]["exit_code"])
+    elif args.command == "eval":
         report = run_eval(args.fixtures, args.labels, args.out)
         if args.audit:
             _append_eval_audit(args.fixtures, args.out, report)
-        return 0 if report["status"] == "PILOT_READY" else 2
-
-    if args.command == "pilot-run":
-        return _run_pilot(args)
-
-    if args.command == "review-apply":
-        return _run_review_apply(args)
-
-    parser.error("unknown command: %s" % args.command)
-    return 1
+        exit_code = 0 if report["status"] == "PILOT_READY" else 2
+    elif args.command == "pilot-run":
+        exit_code = _run_pilot(args)
+    elif args.command == "review-apply":
+        exit_code = _run_review_apply(args)
+    elif args.command == "validate-controls":
+        exit_code = _run_validate_controls(args)
+    elif args.command == "questionnaire":
+        exit_code = _run_questionnaire(args)
+    elif args.command == "supplier-risk":
+        exit_code = _run_supplier_risk(args)
+    else:
+        parser.error("unknown command: %s" % args.command)
+        exit_code = 1
+    return exit_code
 
 
 def _run_pilot(args: argparse.Namespace) -> int:
@@ -166,6 +220,52 @@ def _run_review_apply(args: argparse.Namespace) -> int:
     except ReviewApplyError as exc:
         print("review-apply failed: %s" % exc, file=sys.stderr)
         return REVIEW_APPLY_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_validate_controls(args: argparse.Namespace) -> int:
+    try:
+        catalog_dir = cast(Path | None, args.catalog_dir)
+        bundle = (
+            load_control_catalog_bundle(catalog_dir)
+            if catalog_dir
+            else load_control_catalog_bundle()
+        )
+        print(build_catalog_validation_report(bundle))
+    except ControlCatalogError as exc:
+        print("validate-controls failed: %s" % exc, file=sys.stderr)
+        return C_SCRM_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_questionnaire(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        catalog_dir = cast(Path | None, args.catalog_dir)
+        run_questionnaire(
+            cast(Path, args.questions),
+            cast(Path, args.evidence_store),
+            output_path,
+            catalog_dir=catalog_dir,
+        )
+    except (ControlCatalogError, EvidenceStoreError, QuestionnaireError, ReviewApplyError) as exc:
+        print("questionnaire failed: %s" % exc, file=sys.stderr)
+        return C_SCRM_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_supplier_risk(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        run_supplier_risk(
+            cast(Path, args.profile),
+            cast(Path, args.questionnaire_report),
+            output_path,
+            findings_report_path=cast(Path | None, args.findings_report),
+        )
+    except (SupplierRiskError, ReviewApplyError) as exc:
+        print("supplier-risk failed: %s" % exc, file=sys.stderr)
+        return C_SCRM_ERROR_EXIT_CODE
     return 0
 
 

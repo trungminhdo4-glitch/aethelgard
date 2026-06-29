@@ -47,6 +47,10 @@ Auf diesem Workspace laeuft Python 3.12.6 mit pydantic 2.13.4 — kompatibel.
 src/aethelgard/
   __init__.py              # Package-Marker, __version__
   nis2_controls.py         # NIS2 Artikel-21(2)-Coverage-Referenzen + Report-Matrix
+  control_catalog.py       # C-SCRM Control-Catalog-Loader + Cross-Map-Validator
+  evidence_store.py        # Metadata-only Evidence Store, SHA-256, Secret-Path-Guards
+  questionnaire.py         # CSV-Frageimport, Frage->Controls, Evidence-basierte Drafts
+  supplier_risk.py         # Deterministischer Supplier-Risk-Score + JSON/MD-Report
   mvp1/
     __init__.py            # Public API Re-Exports (Schemas + Parser + PDF + Classifier)
     schemas.py             # pydantic v2 Schemas (ComplianceEvidence)
@@ -54,11 +58,15 @@ src/aethelgard/
     pdf_handler.py         # PDF Page-Streaming (optional pypdf)
     classifier.py          # Klassifikations-Engine (deterministische Heuristik)
   audit.py                 # Append-only JSONL Run-Ledger (Metadaten, keine Inhalte)
-  cli.py                   # CLI: triage + eval + pilot-run + review-apply
+  cli.py                   # CLI: triage + eval + pilot-run + review-apply + C-SCRM
   public_sources.py        # Pure URL-Check-Klassifikation fuer offizielle Quellen
   redaction_preflight.py   # Lokaler Sensitive-Content-Preflight mit Maskierung
   review.py                # Human-Review-Import, reviewed reports, review summary
   triage.py                # Report-, Quality-, Calibration- und Evaluations-Engine
+data/control_catalogs/
+  nis2_supply_chain_controls.json # lokaler NIS2 C-SCRM-Control-Katalog
+  din_spec_27076_light.json       # leichter DIN-SPEC-27076-Katalog
+  cross_framework_map.json        # lokale Cross-Framework-Referenzen
 README.md                  # Nutzer-Quickstart und Produktkern
 docs/
   data-handling.md         # Daten-/Privacy-Grenzen fuer Fixtures und Pilot
@@ -106,6 +114,10 @@ tests/mvp1/
 | `document_parser.py` | Text-Extraktion, Chunking, PDF-Dispatch | Netzwerk, NLP-Frameworks, schwere Dependencies |
 | `pdf_handler.py` | PDF Page-Streaming, Custom PDF-Exceptions | pypdf-Internals leaken, vollstaendige PDF-Inhalte laden |
 | `classifier.py` | Deterministische Heuristik, Compliance-Mapping | Mutationen, IO, externe Modelle (Stufe 1 rein Python, Stufe 2 ONNX-prep) |
+| `control_catalog.py` | Lokale Control-Kataloge und Cross-Map-Validierung | Rechts-/Audit-Claims, externe Quellen zur Laufzeit |
+| `evidence_store.py` | Metadata-only Evidence Records, Hashes, Control-Refs | Rohdaten/Secrets in Reports ausgeben |
+| `questionnaire.py` | CSV-Fragen, heuristisches Control-Mapping, Evidence-Drafts | Antworten ohne Evidence erzeugen |
+| `supplier_risk.py` | Deterministischer Supplier-Risk-Score | Finanz-/Compliance-Beratung, Live-Daten |
 
 ### Public API
 
@@ -192,7 +204,7 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **225 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
+- **233 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
 - Externe IO (Dateisystem, pypdf) zu 100 % gemockt via `unittest.mock`
 - AAA-Pattern (Arrange, Act, Assert)
 - Test-Klassen (document_parser): `TestComplianceEvidenceSchema`,
@@ -228,6 +240,10 @@ from aethelgard.mvp1 import (
 - First-Wave-Outreach-Tests: `test_first_wave_outreach_docs.py` prueft max. 3
   Firmen, `draft_ready`, company-level Kanaele, keine privaten Kontakte, keine
   Anhaenge und keine verbotenen Claims.
+- C-SCRM-MVP-Tests: `test_scrm_workflow.py` prueft eindeutige Control-IDs,
+  gueltige Cross-Framework-Refs, `needs_evidence` ohne Evidence, Drafts nur
+  mit `evidence_refs`, Secret-/PII-Maskierung in Reports und deterministische
+  Supplier-Risk-Scores.
 
 ## Bekannte Gotchas
 
@@ -288,7 +304,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Controlled First Outreach Wave | DRAFT_READY_BLOCKED_BY_SENDER: 3 Firmen verifiziert, Drafts/Tracker/Runbooks erstellt, kein Versand ohne Absenderkonto | 2026-06-28 |
 | Pilot Run Flow | OK: redaction preflight, `pilot-run`, Demo-Bundle und `review_items.csv`; `reports/pilot-demo`: 8/8 Dokumente, 57 Evidenzen, Preflight `pass` | 2026-06-28 |
 | Human Review Apply Flow | OK: stabile `finding_id`, `review-apply`, `reviewed_report.json`, `reviewed_report.md`, `review_summary.json`; strict/nonstrict CSV-Validation und Review-Notiz-Maskierung | 2026-06-28 |
-| Tests | 225/225 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-28 |
+| Technical C-SCRM MVP | OK: lokale Control-Kataloge, Evidence Store, Questionnaire-Drafts mit Review-CSV und Supplier-Risk-Reports; keine Rohdaten/Secrets in Reports | 2026-06-29 |
+| Tests | 233/233 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-29 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
@@ -296,8 +313,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_OPS_READY` | 2026-06-28 |
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
-| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-28 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (12 Source-Dateien) | 2026-06-28 |
+| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-29 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (17 Source-Dateien) | 2026-06-29 |
 | Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)

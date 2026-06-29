@@ -71,3 +71,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Stabile Finding-IDs, `review-apply` CLI, reviewed JSON/Markdown/Summary und Review-Workflow-Tests |
 | Commit | - |
 | Ergebnis | OK: `compileall`, `pytest` (225 passed, 1 skipped, 17 subtests), `ruff`, `mypy`, Fixture-Safety, Pilot-Readiness, `pilot-run`, `review-apply` und `git diff --check` gruen; kein Outreach, keine externen APIs, keine echten Kundendaten, keine Secrets |
+
+### 2026-06-29 02:11 - Technical C-SCRM MVP
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Control-Kataloge, Evidence Store, Questionnaire-Drafts mit Review-CSV und deterministischer Supplier-Risk-Score |
+| Commit | - |
+| Ergebnis | OK: `py_compile`, `pytest` (233 passed, 1 skipped, 17 subtests), `ruff`, `mypy src`, Fixture-Safety und Pilot-Readiness gruen; kein Live-Netzwerk, keine echten Kundendaten, keine Secrets, kein Push |

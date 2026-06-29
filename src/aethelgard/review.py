@@ -16,6 +16,22 @@ from aethelgard.redaction_preflight import has_sensitive_markers, mask_sensitive
 REVIEWED_REPORT_JSON_NAME: Final[str] = "reviewed_report.json"
 REVIEWED_REPORT_MD_NAME: Final[str] = "reviewed_report.md"
 REVIEW_SUMMARY_JSON_NAME: Final[str] = "review_summary.json"
+REVIEW_CSV_NAME: Final[str] = "review_items.csv"
+REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = (
+    "finding_id",
+    "category",
+    "control_area",
+    "document",
+    "evidence_level",
+    "status",
+    "finding",
+    "recommended_manual_check",
+    "source_reference",
+    "review_status",
+    "review_note",
+    "reviewer",
+    "reviewed_at",
+)
 
 REVIEW_STATUS_VALUES: Final[tuple[str, ...]] = (
     "open",
