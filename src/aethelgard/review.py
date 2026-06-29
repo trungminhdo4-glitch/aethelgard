@@ -17,6 +17,11 @@ REVIEWED_REPORT_JSON_NAME: Final[str] = "reviewed_report.json"
 REVIEWED_REPORT_MD_NAME: Final[str] = "reviewed_report.md"
 REVIEW_SUMMARY_JSON_NAME: Final[str] = "review_summary.json"
 REVIEW_CSV_NAME: Final[str] = "review_items.csv"
+REVIEW_OUTPUT_FILES: Final[tuple[str, ...]] = (
+    REVIEWED_REPORT_JSON_NAME,
+    REVIEWED_REPORT_MD_NAME,
+    REVIEW_SUMMARY_JSON_NAME,
+)
 REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = (
     "finding_id",
     "category",
@@ -37,6 +42,7 @@ REVIEW_STATUS_VALUES: Final[tuple[str, ...]] = (
     "open",
     "accepted",
     "reviewed",
+    "rejected",
     "false_positive",
     "needs_evidence",
     "not_applicable",
@@ -80,7 +86,7 @@ def apply_review_csv(
     summary = apply_review_rows(reviewed_report, rows, strict=strict)
 
     output_path = Path(out_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
+    _prepare_review_output_dir(output_path)
     _write_json(output_path / REVIEWED_REPORT_JSON_NAME, reviewed_report)
     _write_text(
         output_path / REVIEWED_REPORT_MD_NAME,
@@ -88,6 +94,24 @@ def apply_review_csv(
     )
     _write_json(output_path / REVIEW_SUMMARY_JSON_NAME, summary)
     return {"reviewed_report": reviewed_report, "summary": summary}
+
+
+def _prepare_review_output_dir(path: Path) -> None:
+    if path.exists() and not path.is_dir():
+        raise ReviewApplyError("review output path must be a directory")
+    if path.exists():
+        unexpected = sorted(
+            child.name
+            for child in path.iterdir()
+            if child.is_dir() or child.name not in REVIEW_OUTPUT_FILES
+        )
+        if unexpected:
+            raise ReviewApplyError(
+                "review output directory contains unexpected files: %s"
+                % ", ".join(unexpected)
+            )
+        return
+    path.mkdir(parents=True, exist_ok=False)
 
 
 def apply_review_rows(

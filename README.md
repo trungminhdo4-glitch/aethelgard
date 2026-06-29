@@ -19,6 +19,9 @@ human pre-review of security documentation through local evidence triage.
 - Demo CLI for JSON/Markdown evidence reports.
 - Pilot-run CLI with masked preflight reports and human-review CSV export.
 - Review-apply CLI for reviewed JSON/Markdown reports and review summaries.
+- Metadata-only evidence store, questionnaire, supplier-risk, and trust-bundle preview flow.
+- Offline CycloneDX SBOM inventory and metadata-gap findings with no CVE/API/network lookup.
+- Supplier profile contract validator for local cascade references.
 - Evaluation CLI with pilot-readiness thresholds.
 - Calibration reports with proxy quality indicators for synthetic fixture packs.
 - Optional metadata-only audit ledger for CLI runs.
@@ -98,6 +101,42 @@ Outputs:
 
 Use `--strict` to fail on unknown review statuses or unknown finding IDs. Blank
 `review_status` values are treated as `open`.
+
+## Local C-SCRM Flow
+
+```powershell
+python -m aethelgard.cli evidence from-reviewed-report --input reports/pilot-reviewed/reviewed_report.json --out reports/cscrm/evidence_store.json
+python -m aethelgard.cli questionnaire --questions tests/fixtures/scrm/questionnaire_e2e.csv --evidence-store reports/cscrm/evidence_store.json --out reports/cscrm/questionnaire
+python -m aethelgard.cli supplier-risk --profile tests/fixtures/scrm/supplier_profile.json --questionnaire-report reports/cscrm/questionnaire/questionnaire_answers.json --out reports/cscrm/risk
+python -m aethelgard.cli trust-bundle build --evidence reports/cscrm/evidence_store.json --supplier-risk reports/cscrm/risk/supplier_risk.json --questionnaire reports/cscrm/questionnaire/questionnaire_answers.json --out reports/cscrm/trust-bundle
+```
+
+Trust bundles are metadata-only previews. They include source hashes, section names,
+conservative status values, evidence indexes, questionnaire summaries, supplier-risk
+summaries, and a disclaimer. They do not export raw snippets, citations, draft answers,
+logs, cookies, private local paths, or compliance confirmations.
+
+## Offline SBOM Commands
+
+```powershell
+python -m aethelgard.cli sbom ingest --input sbom.json --out reports/cscrm/sbom_inventory.json
+python -m aethelgard.cli sbom findings --input sbom.json --out reports/cscrm/sbom_findings.json
+```
+
+The SBOM MVP supports CycloneDX JSON `components` only. SPDX JSON is rejected with a
+clear unsupported-format error. Findings are local metadata gaps only: missing version,
+missing license, missing checksum/hash, unknown package identifier, and duplicate
+component.
+
+## Supplier Profile Contract
+
+```powershell
+python -m aethelgard.cli supplier-profile validate --input supplier_profile_contract.json --out reports/cscrm/supplier_profile_contract.json
+```
+
+The contract links supplier metadata to evidence, questionnaire, SBOM, and risk-summary
+references. Raw notes, private paths, secret-like markers, and unsupported fields are
+blocked.
 
 ## Evaluation Command
 

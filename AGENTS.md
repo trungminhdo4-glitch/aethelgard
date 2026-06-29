@@ -53,6 +53,8 @@ src/aethelgard/
   questionnaire.py         # CSV-Frageimport, Frage->Controls, Evidence-basierte Drafts
   supplier_risk.py         # Deterministischer Supplier-Risk-Score + JSON/MD-Report
   trust_bundle.py          # Metadata-only Trust-Bundle-Preview-Export
+  sbom.py                  # Offline CycloneDX-SBOM-Inventar + Metadata-Gap-Findings
+  supplier_profile.py      # Supplier-Cascade-Profilvertrag + Validator
   mvp1/
     __init__.py            # Public API Re-Exports (Schemas + Parser + PDF + Classifier)
     schemas.py             # pydantic v2 Schemas (ComplianceEvidence)
@@ -60,7 +62,7 @@ src/aethelgard/
     pdf_handler.py         # PDF Page-Streaming (optional pypdf)
     classifier.py          # Klassifikations-Engine (deterministische Heuristik)
   audit.py                 # Append-only JSONL Run-Ledger (Metadaten, keine Inhalte)
-  cli.py                   # CLI: triage + eval + pilot-run + review-apply + C-SCRM + trust-bundle
+  cli.py                   # CLI: triage + eval + pilot-run + review-apply + C-SCRM + trust-bundle + SBOM
   public_sources.py        # Pure URL-Check-Klassifikation fuer offizielle Quellen
   redaction_preflight.py   # Lokaler Sensitive-Content-Preflight mit Maskierung
   review.py                # Human-Review-Import, reviewed reports, review summary
@@ -123,6 +125,8 @@ tests/mvp1/
 | `questionnaire.py` | CSV-Fragen, heuristisches Control-Mapping, Evidence-Drafts | Antworten ohne Evidence erzeugen |
 | `supplier_risk.py` | Deterministischer Supplier-Risk-Score | Finanz-/Compliance-Beratung, Live-Daten |
 | `trust_bundle.py` | Deterministischer metadata-only Bundle-Preview | Rohzitate, Draft-Antworten, private Pfade, Compliance-Claims exportieren |
+| `sbom.py` | Offline CycloneDX-Komponenten-Inventar und lokale Metadata-Gap-Findings | CVE/API/Netzwerk-Abfragen, rohe SBOM-Felder, SPDX-Halbsupport |
+| `supplier_profile.py` | Supplier-Cascade-Contract mit Referenzen zu Evidence/Questionnaire/SBOM/Risk | Raw Notes, private Pfade, unbekannte Felder, Compliance-Claims |
 
 ### Sub-Agent-Regel
 
@@ -270,6 +274,12 @@ from aethelgard.mvp1 import (
 - Trust-Bundle-Tests: `test_trust_bundle.py` prueft erwartete Preview-Dateien,
   deterministisches Manifest, konservative Statuswerte, Missing-Input-Fehler und
   Ausschluss von Rohclaims, Fragen, Drafts, privaten Pfaden und Compliance-Claims.
+- SBOM-Tests: `test_sbom_workflow.py` prueft offline CycloneDX-Inventar,
+  lokale Metadata-Gap-Findings, SPDX-Unsupported-Fehler, sichere Output-Pfade und
+  Ausschluss roher/private SBOM-Felder.
+- Supplier-Profile-Tests: `test_supplier_profile_contract.py` prueft Contract-
+  Normalisierung, ungueltige Kritikalitaet, fehlende `supplier_id` und Blockade
+  privater/raw Felder.
 
 ## Bekannte Gotchas
 
@@ -333,7 +343,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Technical C-SCRM MVP | OK: lokale Control-Kataloge, Evidence Store, Questionnaire-Drafts mit Review-CSV und Supplier-Risk-Reports; keine Rohdaten/Secrets in Reports | 2026-06-29 |
 | Reviewed Evidence Bridge | OK: `evidence from-reviewed-report`, accepted/reviewed Findings -> Evidence Store, Questionnaire-Integration; rejected/needs-evidence ausgeschlossen | 2026-06-29 |
 | Trust Bundle Preview | OK: `trust-bundle build` erzeugt deterministic metadata-only Preview (`manifest`, Evidence-Index, Questionnaire-/Risk-Summary, README); keine Rohzitate, Drafts, privaten Pfade oder Compliance-Claims | 2026-06-29 |
-| Tests | 261/261 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-29 |
+| Offline SBOM + Supplier Contracts | OK: `sbom ingest`, `sbom findings` und `supplier-profile validate`; CycloneDX-only, SPDX unsupported, stabile IDs, keine CVE/API/Netzwerk-Abfragen | 2026-06-29 |
+| Tests | 273/273 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-29 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
@@ -342,7 +353,7 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
 | Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-29 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (19 Source-Dateien) | 2026-06-29 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (21 Source-Dateien) | 2026-06-29 |
 | Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)

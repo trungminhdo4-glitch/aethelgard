@@ -165,6 +165,70 @@ def test_review_apply_accepts_reviewed_status_in_strict_mode(
     assert status_counts["reviewed"] == 1
 
 
+def test_review_apply_accepts_rejected_status_in_strict_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    pilot_dir = tmp_path / "pilot"
+    review_csv = _run_pilot(pilot_dir)
+    headers, rows = _read_review_rows(review_csv)
+    rows[0]["review_status"] = "rejected"
+    rows[0]["review_note"] = "Reviewed and rejected for customer handover."
+    _write_review_rows(review_csv, headers, rows)
+
+    reviewed_dir = tmp_path / "reviewed"
+    exit_code = main(
+        [
+            "review-apply",
+            "--report",
+            str(pilot_dir / REPORT_JSON_NAME),
+            "--review-csv",
+            str(review_csv),
+            "--out",
+            str(reviewed_dir),
+            "--strict",
+        ]
+    )
+
+    reviewed_by_id = _findings_by_id(reviewed_dir / REVIEWED_REPORT_JSON_NAME)
+    summary = _read_json(reviewed_dir / REVIEW_SUMMARY_JSON_NAME)
+    status_counts = cast(dict[str, int], summary["status_counts"])
+
+    assert exit_code == 0
+    assert reviewed_by_id[rows[0]["finding_id"]]["review_status"] == "rejected"
+    assert status_counts["rejected"] == 1
+
+
+def test_review_apply_rejects_existing_output_with_unexpected_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    pilot_dir = tmp_path / "pilot"
+    review_csv = _run_pilot(pilot_dir)
+    reviewed_dir = tmp_path / "reviewed"
+    reviewed_dir.mkdir()
+    stale_file = reviewed_dir / "raw_report.json"
+    stale_file.write_text("RAW_STALE_SHOULD_NOT_EXPORT\n", encoding="utf-8")
+
+    exit_code = main(
+        [
+            "review-apply",
+            "--report",
+            str(pilot_dir / REPORT_JSON_NAME),
+            "--review-csv",
+            str(review_csv),
+            "--out",
+            str(reviewed_dir),
+        ]
+    )
+
+    assert exit_code == REVIEW_APPLY_ERROR_EXIT_CODE
+    assert stale_file.is_file()
+    assert not (reviewed_dir / REVIEWED_REPORT_JSON_NAME).exists()
+
+
 def test_review_apply_unknown_status_strict_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

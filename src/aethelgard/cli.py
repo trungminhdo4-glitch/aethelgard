@@ -28,6 +28,15 @@ from aethelgard.redaction_preflight import (
     write_preflight_reports,
 )
 from aethelgard.review import ReviewApplyError, apply_review_csv
+from aethelgard.sbom import (
+    SbomError,
+    build_sbom_findings_report,
+    build_sbom_inventory,
+)
+from aethelgard.supplier_profile import (
+    SupplierProfileContractError,
+    validate_supplier_profile_contract,
+)
 from aethelgard.supplier_risk import SupplierRiskError, run_supplier_risk
 from aethelgard.triage import run_eval, run_triage
 from aethelgard.trust_bundle import TrustBundleError, build_trust_bundle_preview
@@ -222,6 +231,62 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Output trust bundle preview directory.",
     )
+
+    sbom_parser = subparsers.add_parser(
+        "sbom",
+        help="Build offline metadata-only SBOM inventory and gap findings.",
+    )
+    sbom_subparsers = sbom_parser.add_subparsers(
+        dest="sbom_command",
+        required=True,
+    )
+    sbom_ingest_parser = sbom_subparsers.add_parser(
+        "ingest",
+        help="Extract a deterministic CycloneDX component inventory.",
+    )
+    sbom_ingest_parser.add_argument("--input", required=True, type=Path, help="SBOM JSON file.")
+    sbom_ingest_parser.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="Output SBOM inventory JSON file.",
+    )
+    sbom_findings_parser = sbom_subparsers.add_parser(
+        "findings",
+        help="Create local SBOM metadata-gap findings.",
+    )
+    sbom_findings_parser.add_argument("--input", required=True, type=Path, help="SBOM JSON file.")
+    sbom_findings_parser.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="Output SBOM findings JSON file.",
+    )
+
+    supplier_profile_parser = subparsers.add_parser(
+        "supplier-profile",
+        help="Validate metadata-only supplier cascade profile contracts.",
+    )
+    supplier_profile_subparsers = supplier_profile_parser.add_subparsers(
+        dest="supplier_profile_command",
+        required=True,
+    )
+    supplier_profile_validate_parser = supplier_profile_subparsers.add_parser(
+        "validate",
+        help="Validate and normalize a supplier profile contract JSON file.",
+    )
+    supplier_profile_validate_parser.add_argument(
+        "--input",
+        required=True,
+        type=Path,
+        help="Supplier profile contract JSON file.",
+    )
+    supplier_profile_validate_parser.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="Output normalized supplier profile contract JSON file.",
+    )
     return parser
 
 
@@ -246,18 +311,35 @@ def main(argv: list[str] | None = None) -> int:
         exit_code = _run_review_apply(args)
     elif args.command == "validate-controls":
         exit_code = _run_validate_controls(args)
-    elif args.command == "questionnaire":
-        exit_code = _run_questionnaire(args)
-    elif args.command == "supplier-risk":
-        exit_code = _run_supplier_risk(args)
-    elif args.command == "evidence":
-        exit_code = _run_evidence(args)
-    elif args.command == "trust-bundle":
-        exit_code = _run_trust_bundle(args)
+    elif args.command in {
+        "questionnaire",
+        "supplier-risk",
+        "evidence",
+        "trust-bundle",
+        "sbom",
+        "supplier-profile",
+    }:
+        exit_code = _run_local_workflow(args)
     else:
         parser.error("unknown command: %s" % args.command)
         exit_code = 1
     return exit_code
+
+
+def _run_local_workflow(args: argparse.Namespace) -> int:
+    if args.command == "questionnaire":
+        return _run_questionnaire(args)
+    if args.command == "supplier-risk":
+        return _run_supplier_risk(args)
+    if args.command == "evidence":
+        return _run_evidence(args)
+    if args.command == "trust-bundle":
+        return _run_trust_bundle(args)
+    if args.command == "sbom":
+        return _run_sbom(args)
+    if args.command == "supplier-profile":
+        return _run_supplier_profile(args)
+    raise ReviewApplyError("unknown local workflow command: %s" % args.command)
 
 
 def _run_pilot(args: argparse.Namespace) -> int:
@@ -383,6 +465,39 @@ def _run_trust_bundle_build(args: argparse.Namespace) -> int:
         )
     except (EvidenceStoreError, ReviewApplyError, TrustBundleError) as exc:
         print("trust-bundle build failed: %s" % exc, file=sys.stderr)
+        return C_SCRM_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_sbom(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        if args.sbom_command == "ingest":
+            build_sbom_inventory(cast(Path, args.input), output_path)
+        elif args.sbom_command == "findings":
+            build_sbom_findings_report(cast(Path, args.input), output_path)
+        else:
+            raise SbomError("unknown sbom command: %s" % args.sbom_command)
+    except (ReviewApplyError, SbomError) as exc:
+        print("sbom %s failed: %s" % (args.sbom_command, exc), file=sys.stderr)
+        return C_SCRM_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_supplier_profile(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        if args.supplier_profile_command == "validate":
+            validate_supplier_profile_contract(cast(Path, args.input), output_path)
+        else:
+            raise SupplierProfileContractError(
+                "unknown supplier-profile command: %s" % args.supplier_profile_command
+            )
+    except (ReviewApplyError, SupplierProfileContractError) as exc:
+        print(
+            "supplier-profile %s failed: %s" % (args.supplier_profile_command, exc),
+            file=sys.stderr,
+        )
         return C_SCRM_ERROR_EXIT_CODE
     return 0
 

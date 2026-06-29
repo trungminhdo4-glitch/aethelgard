@@ -25,11 +25,19 @@ TRUST_BUNDLE_FILES: Final[tuple[str, ...]] = (
     TRUST_BUNDLE_SUPPLIER_RISK_SUMMARY_NAME,
     TRUST_BUNDLE_README_NAME,
 )
+TRUST_BUNDLE_INCLUDED_SECTIONS: Final[tuple[str, ...]] = (
+    "evidence_index",
+    "questionnaire_summary",
+    "supplier_risk_summary",
+    "readme",
+)
 TRUST_BUNDLE_ID_HASH_CHARS: Final[int] = 16
+HASH_CHUNK_SIZE_BYTES: Final[int] = 1_048_576
 
 TrustBundleStatus = Literal[
     "accepted",
     "reviewed",
+    "rejected",
     "needs_evidence",
     "needs_review",
     "not_assessed",
@@ -39,12 +47,14 @@ TRUST_BUNDLE_STATUSES: Final[frozenset[str]] = frozenset(
     {
         "accepted",
         "reviewed",
+        "rejected",
         "needs_evidence",
         "needs_review",
         "not_assessed",
     }
 )
 APPROVED_REVIEW_STATUSES: Final[frozenset[str]] = frozenset({"accepted", "reviewed"})
+REJECTED_REVIEW_STATUSES: Final[frozenset[str]] = frozenset({"rejected"})
 NOT_ASSESSED_REVIEW_STATUSES: Final[frozenset[str]] = frozenset(
     {"false_positive", "not_applicable", "resolved"}
 )
@@ -61,9 +71,17 @@ def build_trust_bundle_preview(
     out_dir: Path | str,
 ) -> dict[str, object]:
     """Build a deterministic metadata-only trust bundle preview directory."""
-    evidence_store = load_evidence_store(evidence_store_path)
-    supplier_risk = _read_json(Path(supplier_risk_path), "supplier risk report")
-    questionnaire = _read_json(Path(questionnaire_path), "questionnaire report")
+    evidence_path = Path(evidence_store_path)
+    supplier_path = Path(supplier_risk_path)
+    questionnaire_report_path = Path(questionnaire_path)
+    evidence_store = load_evidence_store(evidence_path)
+    supplier_risk = _read_json(supplier_path, "supplier risk report")
+    questionnaire = _read_json(questionnaire_report_path, "questionnaire report")
+    source_hashes = _build_source_hashes(
+        evidence_store_path=evidence_path,
+        supplier_risk_path=supplier_path,
+        questionnaire_path=questionnaire_report_path,
+    )
 
     evidence_index = _build_evidence_index(evidence_store.evidence)
     questionnaire_summary = _build_questionnaire_summary(questionnaire)
@@ -74,6 +92,7 @@ def build_trust_bundle_preview(
         questionnaire_summary=questionnaire_summary,
         supplier_risk_summary=supplier_risk_summary,
         readme=readme,
+        source_hashes=source_hashes,
     )
 
     output_path = Path(out_dir)
@@ -120,6 +139,8 @@ def _evidence_status(record: EvidenceRecord) -> TrustBundleStatus:
         return "needs_review"
     if review_status in APPROVED_REVIEW_STATUSES:
         return cast(TrustBundleStatus, review_status)
+    if review_status in REJECTED_REVIEW_STATUSES:
+        return "rejected"
     if review_status == "needs_evidence":
         return "needs_evidence"
     if review_status in NOT_ASSESSED_REVIEW_STATUSES:
@@ -167,6 +188,8 @@ def _questionnaire_status(
         return "needs_evidence"
     if normalized_review in APPROVED_REVIEW_STATUSES:
         return cast(TrustBundleStatus, normalized_review)
+    if normalized_review in REJECTED_REVIEW_STATUSES:
+        return "rejected"
     if normalized_review == "needs_evidence":
         return "needs_evidence"
     if normalized_review in NOT_ASSESSED_REVIEW_STATUSES:
@@ -216,21 +239,40 @@ def _build_manifest(
     questionnaire_summary: Mapping[str, object],
     supplier_risk_summary: Mapping[str, object],
     readme: str,
+    source_hashes: Mapping[str, str],
 ) -> dict[str, object]:
     payloads: dict[str, object] = {
         TRUST_BUNDLE_EVIDENCE_INDEX_NAME: evidence_index,
         TRUST_BUNDLE_QUESTIONNAIRE_SUMMARY_NAME: questionnaire_summary,
         TRUST_BUNDLE_SUPPLIER_RISK_SUMMARY_NAME: supplier_risk_summary,
         TRUST_BUNDLE_README_NAME: readme,
+        "included_sections": TRUST_BUNDLE_INCLUDED_SECTIONS,
+        "source_hashes": source_hashes,
     }
     digest = _canonical_hash(payloads)
     return {
+        "bundle_schema_version": TRUST_BUNDLE_SCHEMA_VERSION,
         "schema_version": TRUST_BUNDLE_SCHEMA_VERSION,
         "bundle_type": "trust_bundle_preview",
         "bundle_id": "TB-%s" % digest[:TRUST_BUNDLE_ID_HASH_CHARS],
         "tool_version": __version__,
         "files": TRUST_BUNDLE_FILES,
+        "included_sections": TRUST_BUNDLE_INCLUDED_SECTIONS,
+        "source_hashes": dict(source_hashes),
         "content_sha256": digest,
+    }
+
+
+def _build_source_hashes(
+    *,
+    evidence_store_path: Path,
+    supplier_risk_path: Path,
+    questionnaire_path: Path,
+) -> dict[str, str]:
+    return {
+        "evidence_store": _file_sha256(evidence_store_path, "evidence store"),
+        "supplier_risk": _file_sha256(supplier_risk_path, "supplier risk report"),
+        "questionnaire": _file_sha256(questionnaire_path, "questionnaire report"),
     }
 
 
@@ -303,6 +345,17 @@ def _canonical_hash(payload: Mapping[str, object]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _file_sha256(path: Path, label: str) -> str:
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as input_file:
+            for chunk in iter(lambda: input_file.read(HASH_CHUNK_SIZE_BYTES), b""):
+                digest.update(chunk)
+    except OSError as exc:
+        raise TrustBundleError("could not hash %s: %s" % (label, path)) from exc
+    return digest.hexdigest()
+
+
 def _write_json(path: Path, payload: Mapping[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -325,11 +378,15 @@ def _render_readme() -> str:
             "- supplier_risk_summary.json",
             "",
             "Status values are limited to accepted, reviewed, needs_evidence, "
-            "needs_review, and not_assessed.",
+            "needs_review, not_assessed, and rejected.",
             "",
             "No raw document text, citations, draft answers, database files, logs, "
             "cookies, or private local paths are included.",
             "",
-            "This is not legal advice, not an audit, and not a certification.",
+            "AI-assisted or draft questionnaire answers are omitted and must not be "
+            "treated as final responses.",
+            "",
+            "This is not legal advice, not an audit attestation, not a certification, "
+            "and not a compliance confirmation.",
         )
     ) + "\n"
