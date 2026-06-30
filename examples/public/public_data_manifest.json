@@ -1,0 +1,32 @@
+{
+  "public_data_marker": "aethelgard-public-data-v1",
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "contains_pii": false,
+      "id": "cisa-kev-sample-2026-06-30",
+      "license_note": "CISA KEV data is distributed under CC0 1.0; third-party links and CISA/DHS marks are not reused here.",
+      "local_path": "examples/public/cisa_kev_sample.json",
+      "publisher": "Cybersecurity and Infrastructure Security Agency",
+      "retrieved_at": "2026-06-30",
+      "sha256": "b0a937ed04eb160865b7804c673ddc368f61b79ceba6e7f01f1ce88303121802",
+      "source_type": "cisa_kev_sample",
+      "source_url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+      "upstream_catalog_count": 1630,
+      "upstream_catalog_version": "2026.06.29",
+      "upstream_sha256": "42ae21712bdd452a67088c55e4ee22b81c4a117fd256b4c94adb03b6891fbc08"
+    },
+    {
+      "contains_pii": false,
+      "id": "cyclonedx-helloworld-mbom-min-2026-06-30",
+      "license_note": "Minimized from CycloneDX bom-examples, licensed CC0-1.0.",
+      "local_path": "examples/public/cyclonedx_helloworld_mbom.min.json",
+      "publisher": "CycloneDX",
+      "retrieved_at": "2026-06-30",
+      "sha256": "454aa25405f6d4f080857ea7a7153328965ffa239293ef22190c7308caa5cae3",
+      "source_type": "cyclonedx_sample",
+      "source_url": "https://github.com/CycloneDX/bom-examples/blob/master/MBOM/helloworld-c/mbom.json",
+      "upstream_sha256": "72ee47dcd4841623d68e81e7282892dd4ff58d90bf99385e0626a58d231b1f17"
+    }
+  ]
+}

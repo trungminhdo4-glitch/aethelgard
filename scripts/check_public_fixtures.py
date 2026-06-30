@@ -1,4 +1,4 @@
-"""Static safety check for public synthetic AethelGard fixtures."""
+"""Static safety check for public and demo AethelGard fixtures."""
 
 from __future__ import annotations
 
@@ -11,11 +11,26 @@ from pathlib import Path
 DEFAULT_SCAN_ROOTS = (
     Path("tests") / "fixtures" / "public_nis2",
     Path("tests") / "fixtures" / "customer_like_nis2",
+    Path("examples") / "public",
 )
 MAX_FILE_BYTES = 200_000
 ALLOWED_EMAIL_DOMAINS = ("example.com", "example.invalid")
 ALLOWED_DOMAIN_SUFFIXES = (".invalid",)
 ALLOWED_DOMAINS = {"example.com", "example.invalid"}
+ALLOWED_PUBLIC_DOMAIN_SUFFIXES = (
+    ".cisa.gov",
+    ".cyclonedx.org",
+    ".github.com",
+    ".githubusercontent.com",
+)
+ALLOWED_PUBLIC_DOMAINS = {
+    "cisa.gov",
+    "cyclonedx.org",
+    "github.com",
+    "raw.githubusercontent.com",
+    "www.cisa.gov",
+    "www.cyclonedx.org",
+}
 ALLOWED_EXAMPLE_NETWORKS = (
     ipaddress.ip_network("192.0.2.0/24"),
     ipaddress.ip_network("198.51.100.0/24"),
@@ -36,6 +51,10 @@ EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})\
 DOMAIN_PATTERN = re.compile(r"\b(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}\b")
 IPV4_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 PHONE_PATTERN = re.compile(r"(?<!\d)(?:\+?\d[\d .()/-]{7,}\d)(?!\d)")
+ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+DOT_DATE_PATTERN = re.compile(r"^\d{4}\.\d{2}\.\d{2}$")
+CVE_ID_FRAGMENT_PATTERN = re.compile(r"^\d{4}-\d{4,}$")
+HEX_CHAR_PATTERN = re.compile(r"[a-fA-F0-9]")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -94,7 +113,7 @@ def _check_domains(path: Path, text: str) -> list[str]:
         domain = match.group(0).lower()
         if "@" in domain or _looks_like_file_name(domain):
             continue
-        if domain in ALLOWED_DOMAINS or domain.endswith(ALLOWED_DOMAIN_SUFFIXES):
+        if _domain_is_allowed(domain):
             continue
         findings.append("%s: non-example domain %s" % (path, domain))
     return findings
@@ -121,12 +140,37 @@ def _check_phone_numbers(path: Path, text: str) -> list[str]:
         value = match.group(0)
         if "192.0.2." in value or "198.51.100." in value or "203.0.113." in value:
             continue
+        if (
+            ISO_DATE_PATTERN.fullmatch(value)
+            or DOT_DATE_PATTERN.fullmatch(value)
+            or CVE_ID_FRAGMENT_PATTERN.fullmatch(value)
+            or _looks_embedded_in_hash(text, match.start(), match.end())
+        ):
+            continue
         findings.append("%s: possible phone number %s" % (path, value))
     return findings
 
 
 def _looks_like_file_name(value: str) -> bool:
     return value.endswith((".md", ".json", ".txt", ".py"))
+
+
+def _domain_is_allowed(domain: str) -> bool:
+    return (
+        domain in ALLOWED_DOMAINS
+        or domain in ALLOWED_PUBLIC_DOMAINS
+        or domain.endswith(ALLOWED_DOMAIN_SUFFIXES)
+        or domain.endswith(ALLOWED_PUBLIC_DOMAIN_SUFFIXES)
+    )
+
+
+def _looks_embedded_in_hash(text: str, start: int, end: int) -> bool:
+    previous_char = text[start - 1] if start > 0 else ""
+    next_char = text[end] if end < len(text) else ""
+    return bool(
+        (previous_char and HEX_CHAR_PATTERN.fullmatch(previous_char))
+        or (next_char and HEX_CHAR_PATTERN.fullmatch(next_char))
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -143,7 +187,7 @@ def main(argv: list[str] | None = None) -> int:
         for finding in findings:
             print("FAIL: %s" % finding, file=sys.stderr)
         return 1
-    print("OK: %d synthetic fixture files passed safety checks" % len(files))
+    print("OK: %d public/demo fixture files passed safety checks" % len(files))
     return 0
 
 

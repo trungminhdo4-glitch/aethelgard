@@ -10,12 +10,12 @@ Verified local baseline:
 
 | Area | Status |
 | --- | --- |
-| Branch | `main` |
-| Baseline HEAD | `97bb5a7 feat: prepare paid pilot operations` |
-| Git remote | none configured |
-| Preflight tests | `184 passed, 1 skipped, 17 subtests passed` |
-| Pilot readiness | `PILOT_OPS_READY` |
-| Push performed | no |
+| Branch | verify with `git branch --show-current` before outreach |
+| Baseline HEAD | verify with `git rev-parse HEAD` before outreach |
+| Git remote | no push without explicit owner approval |
+| Preflight tests | run `python -m pytest tests/ -v` before outreach |
+| Pilot readiness | `PILOT_PUBLIC_DATA_READY` after Docker proof and public-data validation |
+| Push performed | no push without `PUSH_OK` |
 
 Fresh outreach demo run on `tests/fixtures/customer_like_nis2`:
 
@@ -27,7 +27,7 @@ Fresh outreach demo run on `tests/fixtures/customer_like_nis2`:
 | Evidence count | 57 |
 | Calibration warnings | 31 |
 | Eval status | `PILOT_READY` |
-| Readiness status | `PILOT_OPS_READY` |
+| Readiness status | run `python scripts/check_pilot_readiness.py --out reports/readiness` |
 
 The warnings are expected for mixed-quality customer-like fixtures and must be used to
 explain why human review remains mandatory.
@@ -47,6 +47,7 @@ explain why human review remains mandatory.
 - `docs/pilot-call-agenda.md`: 30-minute pilot call structure.
 - `docs/demo-script.md`: 15-minute synthetic-data demo flow.
 - `docs/pilot-call-notes-template.md`: structured CRM-style call notes.
+- `docs/pilot-outreach-readiness.md`: consultant-facing pilot boundary summary.
 
 ## Missing Assets
 
@@ -61,6 +62,7 @@ explain why human review remains mandatory.
 - supports human review
 - structured evidence/gap report
 - no external API calls in pilot flow
+- public reference fixture validation with documented hashes
 - redacted non-sensitive samples only
 - not legal advice
 

@@ -6,7 +6,7 @@ import argparse
 import csv
 import json
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final, cast
 
@@ -22,6 +22,7 @@ from aethelgard.evidence_bridge import (
     bridge_reviewed_report_to_evidence_store,
 )
 from aethelgard.evidence_store import EvidenceStoreError
+from aethelgard.public_data import PublicDataError, validate_public_data_manifest
 from aethelgard.questionnaire import QUESTIONNAIRE_JSON_NAME, QuestionnaireError, run_questionnaire
 from aethelgard.redaction_preflight import (
     build_skipped_preflight_report,
@@ -293,6 +294,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output SBOM findings JSON file.",
     )
 
+    public_data_parser = subparsers.add_parser(
+        "public-data",
+        help="Validate committed public reference fixtures without network access.",
+    )
+    public_data_subparsers = public_data_parser.add_subparsers(
+        dest="public_data_command",
+        required=True,
+    )
+    public_data_validate_parser = public_data_subparsers.add_parser(
+        "validate",
+        help="Validate public-data fixture metadata and hashes.",
+    )
+    public_data_validate_parser.add_argument(
+        "--manifest",
+        required=True,
+        type=Path,
+        help="Public-data manifest JSON file.",
+    )
+    public_data_validate_parser.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="Output public-data validation JSON file.",
+    )
+
     supplier_profile_parser = subparsers.add_parser(
         "supplier-profile",
         help="Validate metadata-only supplier cascade profile contracts.",
@@ -349,6 +375,7 @@ def main(argv: list[str] | None = None) -> int:
         "evidence",
         "trust-bundle",
         "sbom",
+        "public-data",
         "supplier-profile",
     }:
         exit_code = _run_local_workflow(args)
@@ -359,18 +386,18 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run_local_workflow(args: argparse.Namespace) -> int:
-    if args.command == "questionnaire":
-        return _run_questionnaire(args)
-    if args.command == "supplier-risk":
-        return _run_supplier_risk(args)
-    if args.command == "evidence":
-        return _run_evidence(args)
-    if args.command == "trust-bundle":
-        return _run_trust_bundle(args)
-    if args.command == "sbom":
-        return _run_sbom(args)
-    if args.command == "supplier-profile":
-        return _run_supplier_profile(args)
+    handlers: Mapping[str, Callable[[argparse.Namespace], int]] = {
+        "questionnaire": _run_questionnaire,
+        "supplier-risk": _run_supplier_risk,
+        "evidence": _run_evidence,
+        "trust-bundle": _run_trust_bundle,
+        "sbom": _run_sbom,
+        "public-data": _run_public_data,
+        "supplier-profile": _run_supplier_profile,
+    }
+    handler = handlers.get(str(args.command))
+    if handler is not None:
+        return handler(args)
     raise ReviewApplyError("unknown local workflow command: %s" % args.command)
 
 
@@ -710,6 +737,22 @@ def _run_sbom(args: argparse.Namespace) -> int:
             raise SbomError("unknown sbom command: %s" % args.sbom_command)
     except (ReviewApplyError, SbomError) as exc:
         print("sbom %s failed: %s" % (args.sbom_command, exc), file=sys.stderr)
+        return C_SCRM_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_public_data(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        if args.public_data_command == "validate":
+            validate_public_data_manifest(cast(Path, args.manifest), output_path)
+        else:
+            raise PublicDataError("unknown public-data command: %s" % args.public_data_command)
+    except (ReviewApplyError, PublicDataError) as exc:
+        print(
+            "public-data %s failed: %s" % (args.public_data_command, exc),
+            file=sys.stderr,
+        )
         return C_SCRM_ERROR_EXIT_CODE
     return 0
 

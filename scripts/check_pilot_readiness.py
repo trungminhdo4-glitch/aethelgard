@@ -21,6 +21,12 @@ from check_docker_delivery import build_report as build_docker_delivery_report  
 
 from aethelgard import __version__  # noqa: E402
 from aethelgard.audit import append_audit_entry, build_audit_entry  # noqa: E402
+from aethelgard.public_data import (  # noqa: E402
+    PUBLIC_DATA_MARKER,
+    PUBLIC_DATA_READY_STATUS,
+    PublicDataError,
+    validate_public_data_manifest,
+)
 from aethelgard.public_sources import URL_CHECK_WARN, classify_public_url_check  # noqa: E402
 from aethelgard.triage import CALIBRATION_JSON_NAME, CALIBRATION_MD_NAME, run_eval  # noqa: E402
 
@@ -29,6 +35,10 @@ FIXTURE_DIR: Final[Path] = PROJECT_ROOT / "tests" / "fixtures" / "public_nis2"
 LABELS_PATH: Final[Path] = FIXTURE_DIR / "golden_labels.json"
 CUSTOMER_FIXTURE_DIR: Final[Path] = PROJECT_ROOT / "tests" / "fixtures" / "customer_like_nis2"
 CUSTOMER_LABELS_PATH: Final[Path] = CUSTOMER_FIXTURE_DIR / "golden_labels.json"
+PUBLIC_DATA_MANIFEST: Final[Path] = (
+    PROJECT_ROOT / "examples" / "public" / "public_data_manifest.json"
+)
+DOCKER_RUNTIME_PROOF_NAME: Final[str] = "docker_runtime_proof.json"
 EXCLUDED_DIR_NAMES: Final[frozenset[str]] = frozenset(
     {".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".venv", ".venv-fresh", "reports"}
 )
@@ -51,11 +61,13 @@ OPS_REQUIRED_DOCS: Final[tuple[Path, ...]] = (
     Path("docs") / "demo-handover.md",
     Path("docs") / "demo-script.md",
     Path("docs") / "pilot-call-agenda.md",
+    Path("docs") / "pilot-outreach-readiness.md",
     Path("docs") / "outreach-target-list-template.csv",
 )
 OPS_LEVEL: Final[str] = "ops"
 CONTROLLED_LEVEL: Final[str] = "controlled"
 DOCKER_LEVEL: Final[str] = "docker"
+PUBLIC_DATA_LEVEL: Final[str] = "public_data"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -82,7 +94,19 @@ def main(argv: list[str] | None = None) -> int:
     docker_static_passed = ops_passed and all(
         check["passed"] for check in checks if check["required"] and check["level"] == DOCKER_LEVEL
     )
-    if docker_static_passed:
+    docker_runtime_passed = docker_static_passed and any(
+        check["id"] == "docker_runtime_verified" and check["passed"] for check in checks
+    )
+    public_data_passed = all(
+        check["passed"]
+        for check in checks
+        if check["required"] and check["level"] == PUBLIC_DATA_LEVEL
+    )
+    if docker_runtime_passed and public_data_passed:
+        status = "PILOT_PUBLIC_DATA_READY"
+    elif docker_runtime_passed:
+        status = "PILOT_DOCKER_RUNTIME_READY"
+    elif docker_static_passed:
         status = "PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED"
     elif ops_passed:
         status = "PILOT_OPS_READY"
@@ -234,6 +258,33 @@ def _build_checks(out_dir: Path) -> list[dict[str, object]]:
     )
     checks.append(
         _check(
+            "real_public_data_manifest_present",
+            PUBLIC_DATA_MANIFEST.is_file(),
+            "Real public-data fixture manifest is present and offline.",
+            level=PUBLIC_DATA_LEVEL,
+        )
+    )
+    checks.append(
+        _check(
+            "real_public_data_validation",
+            _public_data_validation_is_ready(),
+            "CISA KEV and CycloneDX public fixtures validate by local hash and schema.",
+            level=PUBLIC_DATA_LEVEL,
+        )
+    )
+    checks.append(
+        _check(
+            "public_data_cli_test_present",
+            _test_file_mentions(
+                Path("tests") / "test_public_data_workflow.py",
+                ("test_public_data_validate_cli_writes_metadata_only_report",),
+            ),
+            "Public-data CLI regression test is present.",
+            level=PUBLIC_DATA_LEVEL,
+        )
+    )
+    checks.append(
+        _check(
             "docker_static_delivery",
             _docker_static_delivery_is_ready(),
             "Dockerfile, compose, .dockerignore, and static Docker delivery gates pass.",
@@ -259,8 +310,8 @@ def _build_checks(out_dir: Path) -> list[dict[str, object]]:
     checks.append(
         _check(
             "docker_runtime_verified",
-            False,
-            "Docker runtime is verified separately with scripts/docker_smoke.ps1.",
+            _docker_runtime_is_verified(out_dir / DOCKER_RUNTIME_PROOF_NAME),
+            "Docker runtime proof is written by scripts/docker_smoke.ps1.",
             required=False,
             level=DOCKER_LEVEL,
         )
@@ -436,16 +487,48 @@ def _pilot_demo_examples_present() -> bool:
     return all(path.is_file() for path in required)
 
 
+def _public_data_validation_is_ready() -> bool:
+    try:
+        report = validate_public_data_manifest(PUBLIC_DATA_MANIFEST)
+    except PublicDataError:
+        return False
+    return (
+        report["status"] == PUBLIC_DATA_READY_STATUS
+        and report["public_data_marker"] == PUBLIC_DATA_MARKER
+        and int(report["source_count"]) >= 2
+    )
+
+
 def _docker_static_delivery_is_ready() -> bool:
     return build_docker_delivery_report()["status"] == "DOCKER_STATIC_READY"
+
+
+def _docker_runtime_is_verified(proof_path: Path) -> bool:
+    if not proof_path.is_file():
+        return False
+    try:
+        payload = json.loads(proof_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(payload, dict):
+        return False
+    return (
+        payload.get("status") == "DOCKER_RUNTIME_READY"
+        and payload.get("help") == "pass"
+        and payload.get("demo_pilot") == "pass"
+        and payload.get("network_none_demo") is True
+        and payload.get("output_mount") == "pass"
+    )
 
 
 def _readme_mentions_docker_quickstart() -> bool:
     readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
     required = (
-        "Local Consultant Install / Docker Quickstart",
+        "Consultant Laptop Delivery",
+        "No VM is required",
         "docker build -t aethelgard:local .",
         "docker compose run --rm aethelgard demo-pilot",
+        "public-data validate",
     )
     return all(term in readme for term in required)
 

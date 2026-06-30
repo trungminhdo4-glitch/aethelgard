@@ -21,6 +21,8 @@ human pre-review of security documentation through local evidence triage.
 - Review-apply CLI for reviewed JSON/Markdown reports and review summaries.
 - Metadata-only evidence store, questionnaire, supplier-risk, and trust-bundle preview flow.
 - Offline CycloneDX SBOM inventory and metadata-gap findings with no CVE/API/network lookup.
+- Offline public-data validation for a minimized CISA KEV sample and a minimized
+  CycloneDX public fixture.
 - Supplier profile contract validator for local cascade references.
 - Full synthetic `demo-pilot` CLI flow for local consultant/laptop validation.
 - Dockerfile and Compose profile for local offline CLI delivery.
@@ -138,8 +140,8 @@ The demo answers: which synthetic documents produced candidate evidence, which f
 were reviewed, which controls have metadata-only evidence, which questionnaire items
 still need evidence, which SBOM metadata gaps exist, and what goes into the final trust
 bundle preview. It does not certify compliance, replace legal review, make audit claims,
-or process customer data. Inputs in `examples/pilot` are synthetic; no public third-party
-data is ingested by default.
+or process customer data. Inputs in `examples/pilot` are synthetic. Real public
+reference fixtures are validated separately under `examples/public`.
 
 ## Local C-SCRM Flow
 
@@ -184,6 +186,29 @@ Expected outputs:
 - `reports/sbom-demo/sbom_inventory.json`
 - `reports/sbom-demo/sbom_findings.json`
 
+## Public Data Validation
+
+AethelGard includes a tiny offline public-data pack for pilot validation:
+
+- `examples/public/cisa_kev_sample.json`: 3 minimized CISA KEV records.
+- `examples/public/cyclonedx_helloworld_mbom.min.json`: minimized CycloneDX public
+  example derived from the official bom-examples repository.
+- `examples/public/public_data_manifest.json`: source URL, publisher, retrieval date,
+  SHA256, upstream SHA256 where relevant, license note, and `contains_pii: false`.
+
+The default tests do not download these sources. They validate the committed local
+fixtures by schema, hash, source metadata, and `public-data-marker`.
+
+```powershell
+python -m aethelgard.cli public-data validate --manifest examples/public/public_data_manifest.json --out reports/public-data/public_data_validation.json
+python -m aethelgard.cli sbom ingest --input examples/public/cyclonedx_helloworld_mbom.min.json --out reports/public-data/sbom_inventory.json
+python -m aethelgard.cli sbom findings --input examples/public/cyclonedx_helloworld_mbom.min.json --out reports/public-data/sbom_findings.json
+```
+
+This is a public reference-source validation path only. It is not a live KEV feed, not
+a vulnerability assessment, not legal advice, not an audit, and not a compliance
+decision.
+
 ## Supplier Profile Contract
 
 ```powershell
@@ -200,7 +225,12 @@ For a runnable synthetic contract example:
 python -m aethelgard.cli supplier-profile validate --input examples/pilot/supplier_profile_contract_demo.json --out reports/cscrm/supplier_profile_contract.normalized.json
 ```
 
-## Local Consultant Install / Docker Quickstart
+## Consultant Laptop Delivery
+
+No VM is required. The primary delivery path is Docker Desktop or Docker Engine on the
+consultant laptop. A VM remains optional infrastructure if a consultant already uses
+one, but AethelGard is delivered as source plus a Docker/container image or image
+tarball, not as a VM appliance.
 
 Prerequisite: Docker Desktop or Docker Engine.
 
@@ -209,6 +239,7 @@ docker build -t aethelgard:local .
 docker run --rm aethelgard:local --help
 docker compose run --rm aethelgard --help
 docker compose run --rm aethelgard demo-pilot --examples examples/pilot --out reports/docker-demo
+docker run --rm --network none -v ${PWD}/examples:/workspace/examples:ro -v ${PWD}/reports:/workspace/reports:rw aethelgard:local public-data validate --manifest examples/public/public_data_manifest.json --out reports/public-data/public_data_validation.json
 ```
 
 Inputs are mounted from `./examples` as read-only data. Outputs are written under
@@ -216,15 +247,15 @@ Inputs are mounted from `./examples` as read-only data. Outputs are written unde
 for the default local demo path and runs as a non-root user. Do not place secrets,
 customer data, `.env` files, databases, or private logs in the Docker build context.
 
-To process owner-approved local files, mount or copy them into a project subdirectory
-that is not ignored for Docker, then run the existing CLI commands with explicit
-`--input` and `--out` paths. The tool runs locally and does not send data to cloud
-services.
+To process owner-approved local files, mount them read-only from outside the repository
+and write outputs to `./reports`. Do not copy customer samples into the repo or Docker
+build context.
 
 Delivery and maintenance models:
 
 - Local source build: the consultant builds `aethelgard:local` from this repository.
-- Versioned image or tarball: the owner can distribute a reviewed image artifact.
+- Versioned Docker image or tarball: the owner can distribute a reviewed container
+  image artifact tagged with the commit SHA.
 - Maintenance updates: new checks, templates, public-fixture manifests, security
   updates, and bug fixes can be delivered as a new source or image release.
 
@@ -232,7 +263,31 @@ Runtime Docker proof is opt-in:
 
 ```powershell
 .\scripts\docker_smoke.ps1
+.\scripts\consultant_laptop_smoke.ps1
 ```
+
+Native Python fallback, if Docker is not allowed:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[all]"
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = "1"
+$env:PYTHONPATH = "D:\projects\aethelgard\src"
+python -m aethelgard.cli demo-pilot --examples examples/pilot --out reports/native-demo
+python -m aethelgard.cli public-data validate --manifest examples/public/public_data_manifest.json --out reports/native-public-data/public_data_validation.json
+```
+
+Release handoff can be prepared with:
+
+```powershell
+.\scripts\build_release_package.ps1 -SkipDockerBuild
+.\scripts\build_release_package.ps1 -SaveDockerImage
+```
+
+The release script creates a source ZIP, a commit-SHA Docker image tag, optional Docker
+image tar, and `SHA256SUMS.txt`. It excludes `reports/`, `.git`, `.env*`, virtual
+environments, databases, logs, `dist/`, and research/outreach raw material.
 
 ## Evaluation Command
 
@@ -285,6 +340,10 @@ Outputs:
 
 Status values:
 
+- `PILOT_PUBLIC_DATA_READY`: Docker runtime proof exists, static delivery gates pass,
+  and real public fixtures validate offline.
+- `PILOT_DOCKER_RUNTIME_READY`: Docker runtime proof exists and static Docker delivery
+  gates pass, but public-data readiness is not complete.
 - `PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED`: local pilot gates and static Docker
   delivery gates pass; Docker runtime smoke has not been run by this checker.
 - `PILOT_OPS_READY`: local pilot operations pack is present and local readiness gates pass.
@@ -316,9 +375,26 @@ for evidence in parser.parse_text("Our risk assessment process is documented and
 - `--audit` stores metadata only: command, paths, counts, status, version, warnings, and
   errors. It does not store document text or extracted citations.
 
+## Pilot Outreach Readiness
+
+A pilot customer receives a local evidence triage run, a human-review CSV, reviewed
+metadata reports, questionnaire/risk summaries, SBOM metadata-gap findings, and a
+metadata-only trust bundle preview.
+
+AethelGard needs 3 to 10 redacted, non-sensitive documents, an optional CycloneDX SBOM,
+supplier profile metadata, and an owner-approved retention/deletion decision. Public
+fixtures may be used for a no-customer-data demo.
+
+Outputs stay local under `reports/` on the owner or consultant machine. The default
+Docker demo uses `--network none`, read-only examples, and a writable reports mount.
+
+Limits remain explicit: no legal advice, no certification, no audit opinion, no
+automatic NIS-2 conformity, no SaaS, no private customer data by default, no secrets,
+and no live external API calls in the normal pilot path.
+
 ## Pilot Status
 
-AethelGard is now `PILOT_READY` for an internal/friendly synthetic pilot and
-`PILOT_OPS_READY` for preparing outreach to 3-5 MSP/security consultancies, provided
-the first real pilot still uses non-sensitive documents, human review, local processing,
+AethelGard is now ready for a first consultant pilot rehearsal with synthetic examples
+and committed public reference fixtures. A first real customer-document pilot still
+requires owner-approved redaction, non-sensitive inputs, human review, local processing,
 and explicit deletion/retention handling.

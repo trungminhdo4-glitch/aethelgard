@@ -16,6 +16,7 @@ REQUIRED_DOCKERIGNORE_MARKERS: Final[tuple[str, ...]] = (
     ".env.*",
     ".venv/",
     ".venv*/",
+    "dist/",
     "reports/",
     "*.log",
     "*.db",
@@ -80,6 +81,38 @@ def build_report() -> dict[str, object]:
         _check("compose_reports_writable", _compose_contains("./reports:/workspace/reports:rw")),
         _check("dockerignore_required_markers", _dockerignore_has_required_markers()),
         _check("docker_context_filename_safety", not _forbidden_context_names()),
+        _check(
+            "docker_smoke_writes_runtime_proof",
+            _script_contains(
+                "docker_smoke.ps1",
+                ("docker_runtime_proof.json", "DOCKER_RUNTIME_READY", "public-data validate"),
+            ),
+        ),
+        _check(
+            "consultant_laptop_smoke_exists",
+            _script_contains(
+                "consultant_laptop_smoke.ps1",
+                ("docker build", "public-data validate", "Assert-CleanOutput"),
+            ),
+        ),
+        _check(
+            "release_package_script_exists",
+            _script_contains(
+                "build_release_package.ps1",
+                ("git rev-parse --short=12 HEAD", "SHA256SUMS.txt", "docker save"),
+            ),
+        ),
+        _check(
+            "readme_consultant_delivery",
+            _readme_contains(
+                (
+                    "Consultant Laptop Delivery",
+                    "No VM is required",
+                    "Native Python fallback",
+                    "SHA256SUMS.txt",
+                )
+            ),
+        ),
     ]
     status = "DOCKER_STATIC_READY" if all(check["passed"] for check in checks) else "NOT_READY"
     return {
@@ -98,10 +131,21 @@ def _compose_contains(marker: str) -> bool:
     return _path_contains(PROJECT_ROOT / "compose.yaml", marker)
 
 
-def _path_contains(path: Path, marker: str) -> bool:
+def _script_contains(name: str, markers: tuple[str, ...]) -> bool:
+    return _path_contains(PROJECT_ROOT / "scripts" / name, markers)
+
+
+def _readme_contains(markers: tuple[str, ...]) -> bool:
+    return _path_contains(PROJECT_ROOT / "README.md", markers)
+
+
+def _path_contains(path: Path, marker: str | tuple[str, ...]) -> bool:
     if not path.is_file():
         return False
-    return marker in path.read_text(encoding="utf-8")
+    text = path.read_text(encoding="utf-8")
+    if isinstance(marker, str):
+        return marker in text
+    return all(item in text for item in marker)
 
 
 def _dockerignore_has_required_markers() -> bool:

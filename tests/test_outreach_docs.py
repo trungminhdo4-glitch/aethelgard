@@ -18,6 +18,7 @@ REQUIRED_OUTREACH_FILES = (
     "pilot-call-agenda.md",
     "demo-script.md",
     "pilot-call-notes-template.md",
+    "pilot-outreach-readiness.md",
     "sample-data-request.md",
 )
 
@@ -114,3 +115,15 @@ def test_outreach_readiness_contains_go_no_go_and_forbidden_claims() -> None:
     assert "guarantees NIS-2 compliance" in content
     assert "replaces audit/legal review" in content
     assert "Owner manually selects 3 to 5" in content
+
+
+def test_pilot_outreach_readiness_keeps_customer_claims_narrow() -> None:
+    content = read_doc("pilot-outreach-readiness.md")
+
+    assert "What A Pilot Customer Gets" in content
+    assert "Inputs Needed" in content
+    assert "Outputs" in content
+    assert "Local Data Boundary" in content
+    assert "No legal advice" in content
+    assert "No certification" in content
+    assert "No automatic NIS-2 conformity" in content

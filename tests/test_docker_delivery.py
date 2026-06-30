@@ -25,4 +25,8 @@ def test_docker_delivery_static_gate_passes(tmp_path: Path) -> None:
         "compose_examples_read_only",
         "compose_reports_writable",
         "dockerignore_required_markers",
+        "docker_smoke_writes_runtime_proof",
+        "consultant_laptop_smoke_exists",
+        "release_package_script_exists",
+        "readme_consultant_delivery",
     }.issubset(check_ids)

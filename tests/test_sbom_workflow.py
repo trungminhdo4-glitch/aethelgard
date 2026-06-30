@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import cast
@@ -12,6 +13,7 @@ from aethelgard.cli import C_SCRM_ERROR_EXIT_CODE, main
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEMO_SBOM = PROJECT_ROOT / "examples" / "sbom" / "cyclonedx_demo.json"
+PUBLIC_CYCLONEDX_SBOM = PROJECT_ROOT / "examples" / "public" / "cyclonedx_helloworld_mbom.min.json"
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
@@ -198,6 +200,40 @@ def test_sbom_demo_fixture_cli_smoke_is_deterministic_and_metadata_only(
         "certified",
     ):
         assert unsafe not in demo_output_text
+
+
+def test_public_cyclonedx_fixture_runs_through_sbom_pipeline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    inventory_out = tmp_path / "public-sbom" / "sbom_inventory.json"
+    findings_out = tmp_path / "public-sbom" / "sbom_findings.json"
+
+    ingest_exit = main(
+        ["sbom", "ingest", "--input", str(PUBLIC_CYCLONEDX_SBOM), "--out", str(inventory_out)]
+    )
+    findings_exit = main(
+        ["sbom", "findings", "--input", str(PUBLIC_CYCLONEDX_SBOM), "--out", str(findings_out)]
+    )
+
+    inventory = _read_json(inventory_out)
+    findings = _read_json(findings_out)
+    output_text = inventory_out.read_text(encoding="utf-8") + findings_out.read_text(
+        encoding="utf-8"
+    )
+
+    assert ingest_exit == 0
+    assert findings_exit == 0
+    assert inventory["source_label"] == PUBLIC_CYCLONEDX_SBOM.name
+    assert inventory["sbom_sha256"] == hashlib.sha256(
+        PUBLIC_CYCLONEDX_SBOM.read_bytes()
+    ).hexdigest()
+    assert inventory["component_count"] == 1
+    assert int(cast(int, findings["finding_count"])) > 0
+    assert findings["sbom_sha256"] == inventory["sbom_sha256"]
+    for unsafe in (".env", "api_key", "Bearer", "Cookie", "C:/Users", r"C:\Users", "/home/"):
+        assert unsafe not in output_text
 
 
 def test_sbom_spdx_is_rejected_without_output(

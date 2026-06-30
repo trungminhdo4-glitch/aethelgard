@@ -28,5 +28,33 @@ def test_pilot_readiness_check_writes_reports(tmp_path: Path) -> None:
     assert "customer_like_eval" in check_ids
     assert "calibration_report_outputs" in check_ids
     assert "public_url_check_403_tolerant" in check_ids
+    assert "real_public_data_validation" in check_ids
     assert "docker_static_delivery" in check_ids
     assert "pilot_full_local_flow_test_present" in check_ids
+
+
+def test_pilot_readiness_status_uses_docker_runtime_proof(tmp_path: Path) -> None:
+    out_dir = tmp_path / "readiness"
+    out_dir.mkdir()
+    proof_path = out_dir / "docker_runtime_proof.json"
+    proof_path.write_text(
+        json.dumps(
+            {
+                "demo_pilot": "pass",
+                "help": "pass",
+                "network_none_demo": True,
+                "output_mount": "pass",
+                "status": "DOCKER_RUNTIME_READY",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    exit_code = main(["--out", str(out_dir)])
+
+    payload = json.loads((out_dir / "pilot_readiness.json").read_text(encoding="utf-8"))
+    assert exit_code == 0
+    assert payload["status"] == "PILOT_PUBLIC_DATA_READY"
