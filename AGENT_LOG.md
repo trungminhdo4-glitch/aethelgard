@@ -127,3 +127,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Experimentaler lokaler ML-Assistenz-Layer fuer Features, BM25, SimHash, Weak Labels, fallback Doc-Type-Klassifikation, Control-Suggestions, Severity Ranking und Active-Review-Queue |
 | Commit | - |
 | Ergebnis | OK: Start-HEAD `42e227818059a8e8657169a6305bf34c6aa4cad0`; pure-Python ohne neue Dependencies, sklearn fallbackfaehig und auf diesem System nicht installiert; `pytest` (319 passed, 1 skipped, 17 subtests), `compileall`, `ruff check .`, `mypy src`, Fixture-Safety, Pilot-Readiness `PILOT_PUBLIC_DATA_READY`, `git diff --check` gruen; Beispieloutputs unter `reports/ml/`; keine raw Snippets, privaten Pfade, Secrets, Kundendaten, LLMs, Cloud, Docker-Runtime oder Netzwerk |
+
+### 2026-06-30 18:45 - ML delivery readiness hardening
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Docker-ML-Smoke, Release-/Readiness-Gates nach ML-Slice, Consultant-Laptop-Hardening, Delivery-Profil und privacy-safe Learning-Export |
+| Commit | - |
+| Ergebnis | OK: Start-HEAD `bf86c70fe00dd8b225d13276e347901b75c8e7a6`; umgesetzt ohne neue Dependencies mit `docker_ml_smoke.ps1`, `delivery-profile validate`, redigiertem `ml export-learning-feedback`, deterministischem ML-Metadata-Timestamp und token-freiem fallback Doc-Type-Model-Output; `pytest` (326 passed, 1 skipped, 17 subtests), `compileall`, `ruff`, `mypy src`, Fixture-Safety, Docker-Static-Gate, `docker_smoke`, `docker_ml_smoke`, `consultant_laptop_smoke` und Pilot-Readiness `PILOT_PUBLIC_DATA_READY` gruen; keine echten Kundendaten, Secrets, `.env`, LLMs, Cloud, Push, Merge oder Rebase |

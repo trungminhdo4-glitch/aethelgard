@@ -31,6 +31,7 @@ function Assert-CleanOutput {
 docker version
 docker build -t $Image .
 docker run --rm $Image --help
+docker run --rm --network none $Image ml --help
 docker run --rm --network none `
     -v "${PWD}/examples:/workspace/examples:ro" `
     -v "${PWD}/reports:/workspace/reports:rw" `

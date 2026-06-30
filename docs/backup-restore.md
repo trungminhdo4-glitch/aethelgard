@@ -6,20 +6,24 @@ repository and do not push without owner approval.
 ## Create Bundle
 
 ```powershell
-mkdir D:\projects\aethelgard_backups -Force
-git bundle create D:\projects\aethelgard_backups\aethelgard-main-YYYYMMDD-HHMM.bundle --all
+$backupRoot = Join-Path (Split-Path -Parent (Get-Location).Path) "aethelgard_backups"
+New-Item -ItemType Directory -Force -Path $backupRoot
+git bundle create (Join-Path $backupRoot "aethelgard-main-YYYYMMDD-HHMM.bundle") --all
 ```
 
 ## Verify Bundle
 
 ```powershell
-git bundle verify D:\projects\aethelgard_backups\aethelgard-main-YYYYMMDD-HHMM.bundle
+$backupRoot = Join-Path (Split-Path -Parent (Get-Location).Path) "aethelgard_backups"
+git bundle verify (Join-Path $backupRoot "aethelgard-main-YYYYMMDD-HHMM.bundle")
 ```
 
 ## Clone From Bundle
 
 ```powershell
-git clone D:\projects\aethelgard_backups\aethelgard-main-YYYYMMDD-HHMM.bundle D:\projects\aethelgard_restore_test
+$backupRoot = Join-Path (Split-Path -Parent (Get-Location).Path) "aethelgard_backups"
+git clone (Join-Path $backupRoot "aethelgard-main-YYYYMMDD-HHMM.bundle") `
+    (Join-Path (Split-Path -Parent (Get-Location).Path) "aethelgard_restore_test")
 ```
 
 ## Restore Notes

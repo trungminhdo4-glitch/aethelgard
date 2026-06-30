@@ -39,8 +39,18 @@ PUBLIC_DATA_MANIFEST: Final[Path] = (
     PROJECT_ROOT / "examples" / "public" / "public_data_manifest.json"
 )
 DOCKER_RUNTIME_PROOF_NAME: Final[str] = "docker_runtime_proof.json"
+DOCKER_ML_RUNTIME_PROOF_NAME: Final[str] = "docker_ml_runtime_proof.json"
 EXCLUDED_DIR_NAMES: Final[frozenset[str]] = frozenset(
-    {".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".venv", ".venv-fresh", "reports"}
+    {
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".tmp",
+        ".venv",
+        ".venv-fresh",
+        "reports",
+    }
 )
 CONTROLLED_REQUIRED_DOCS: Final[tuple[Path, ...]] = (
     Path("docs") / "data-handling.md",
@@ -97,15 +107,20 @@ def main(argv: list[str] | None = None) -> int:
     docker_runtime_passed = docker_static_passed and any(
         check["id"] == "docker_runtime_verified" and check["passed"] for check in checks
     )
+    docker_ml_runtime_passed = docker_static_passed and any(
+        check["id"] == "docker_ml_runtime_verified" and check["passed"] for check in checks
+    )
     public_data_passed = all(
         check["passed"]
         for check in checks
         if check["required"] and check["level"] == PUBLIC_DATA_LEVEL
     )
-    if docker_runtime_passed and public_data_passed:
+    if docker_runtime_passed and docker_ml_runtime_passed and public_data_passed:
         status = "PILOT_PUBLIC_DATA_READY"
-    elif docker_runtime_passed:
+    elif docker_runtime_passed and docker_ml_runtime_passed:
         status = "PILOT_DOCKER_RUNTIME_READY"
+    elif docker_runtime_passed:
+        status = "PILOT_DOCKER_RUNTIME_READY_ML_UNVERIFIED"
     elif docker_static_passed:
         status = "PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED"
     elif ops_passed:
@@ -301,6 +316,14 @@ def _build_checks(out_dir: Path) -> list[dict[str, object]]:
     )
     checks.append(
         _check(
+            "docker_ml_smoke_script_present",
+            _docker_ml_smoke_script_is_present(),
+            "Opt-in Docker ML runtime smoke script is present and covers ML commands.",
+            level=DOCKER_LEVEL,
+        )
+    )
+    checks.append(
+        _check(
             "readme_docker_quickstart",
             _readme_mentions_docker_quickstart(),
             "README documents local consultant Docker quickstart.",
@@ -309,9 +332,26 @@ def _build_checks(out_dir: Path) -> list[dict[str, object]]:
     )
     checks.append(
         _check(
+            "readme_docker_ml_smoke",
+            _readme_mentions_docker_ml_smoke(),
+            "README documents Docker ML smoke for post-ML delivery proof.",
+            level=DOCKER_LEVEL,
+        )
+    )
+    checks.append(
+        _check(
             "docker_runtime_verified",
             _docker_runtime_is_verified(out_dir / DOCKER_RUNTIME_PROOF_NAME),
             "Docker runtime proof is written by scripts/docker_smoke.ps1.",
+            required=False,
+            level=DOCKER_LEVEL,
+        )
+    )
+    checks.append(
+        _check(
+            "docker_ml_runtime_verified",
+            _docker_ml_runtime_is_verified(out_dir / DOCKER_ML_RUNTIME_PROOF_NAME),
+            "Docker ML runtime proof is written by scripts/docker_ml_smoke.ps1.",
             required=False,
             level=DOCKER_LEVEL,
         )
@@ -521,6 +561,48 @@ def _docker_runtime_is_verified(proof_path: Path) -> bool:
     )
 
 
+def _docker_ml_runtime_is_verified(proof_path: Path) -> bool:
+    if not proof_path.is_file():
+        return False
+    try:
+        payload = json.loads(proof_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(payload, dict):
+        return False
+    return (
+        payload.get("status") == "DOCKER_ML_RUNTIME_READY"
+        and payload.get("help") == "pass"
+        and payload.get("ml_help") == "pass"
+        and payload.get("features") == "pass"
+        and payload.get("search") == "pass"
+        and payload.get("dedupe") == "pass"
+        and payload.get("weak_labels") == "pass"
+        and payload.get("train_baselines") == "pass"
+        and payload.get("classify_docs") == "pass"
+        and payload.get("suggest_controls") == "pass"
+        and payload.get("rank_findings") == "pass"
+        and payload.get("active_review") == "pass"
+        and payload.get("network_none_ml") is True
+        and payload.get("output_mount") == "pass"
+        and payload.get("safety_scan") == "pass"
+    )
+
+
+def _docker_ml_smoke_script_is_present() -> bool:
+    return _path_contains(
+        PROJECT_ROOT / "scripts" / "docker_ml_smoke.ps1",
+        (
+            "docker build -t $Image .",
+            "docker run --rm --network none $Image ml --help",
+            "ml\", \"features",
+            "ml\", \"active-review",
+            "Assert-CleanMlOutput",
+            "DOCKER_ML_RUNTIME_READY",
+        ),
+    )
+
+
 def _readme_mentions_docker_quickstart() -> bool:
     readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
     required = (
@@ -531,6 +613,24 @@ def _readme_mentions_docker_quickstart() -> bool:
         "public-data validate",
     )
     return all(term in readme for term in required)
+
+
+def _readme_mentions_docker_ml_smoke() -> bool:
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    required = (
+        "Docker ML smoke",
+        ".\\scripts\\docker_ml_smoke.ps1",
+        "ml features",
+        "ml active-review",
+    )
+    return all(term in readme for term in required)
+
+
+def _path_contains(path: Path, markers: tuple[str, ...]) -> bool:
+    if not path.is_file():
+        return False
+    text = path.read_text(encoding="utf-8")
+    return all(marker in text for marker in markers)
 
 
 def _check(

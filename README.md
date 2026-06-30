@@ -28,6 +28,8 @@ human pre-review of security documentation through local evidence triage.
 - Experimental low-compute ML baselines for metadata-only feature extraction, BM25
   search, SimHash duplicate review, weak labels, fallback document classification,
   control suggestions, severity ranking, and active-review queues.
+- Privacy-safe learning-feedback export for owner-reviewed, redacted ML signals.
+- Metadata-only delivery-profile validator for local consultant/white-label handoff.
 - Dockerfile and Compose profile for local offline CLI delivery.
 - Evaluation CLI with pilot-readiness thresholds.
 - Calibration reports with proxy quality indicators for synthetic fixture packs.
@@ -47,7 +49,7 @@ pip install -e ".[all]"
 
 ```powershell
 $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = "1"
-$env:PYTHONPATH = "D:\projects\aethelgard\src"
+$env:PYTHONPATH = (Resolve-Path .\src).Path
 python -m compileall -q src tests scripts
 python -m pytest -q
 python scripts/check_public_fixtures.py
@@ -230,6 +232,7 @@ python -m aethelgard.cli ml classify-docs --model reports/ml/models/doc_type_mod
 python -m aethelgard.cli ml suggest-controls --input examples/pilot/documents --out reports/ml/control_suggestions.json
 python -m aethelgard.cli ml rank-findings --input reports/ml/features.jsonl --out reports/ml/ranked_findings.json
 python -m aethelgard.cli ml active-review --predictions reports/ml/doc_predictions.json --weak-labels reports/ml/weak_labels.jsonl --duplicates reports/ml/duplicates.json --severity reports/ml/ranked_findings.json --out reports/ml/active_review_queue.json
+python -m aethelgard.cli ml export-learning-feedback --review-csv reports/pilot-demo/review_items.csv --predictions reports/ml/control_suggestions.json --out reports/ml/learning_export.json
 ```
 
 Outputs avoid raw snippets and private absolute paths. Feature rows contain stable IDs,
@@ -238,6 +241,13 @@ Search and mapping outputs expose only scores, IDs, relative refs, and reason co
 Model outputs include explicit registry metadata: model name/type/version, feature
 schema, training-data reference, generated timestamp, git commit when available, and
 `experimental: true`.
+
+Learning-feedback exports are local files only. They do not send data, train weights,
+or include raw snippets, file names, private paths, e-mail addresses, IPs, hostnames,
+tokens, free-text review notes, or customer identifiers. The export contains only
+hashes, allowlisted control IDs, allowlisted reason codes, confidence buckets, and
+allowlisted review decisions. It always sets `requires_owner_approval: true`,
+`manual_review_required: true`, and `safe_for_vendor_upload: false` by default.
 
 Implemented P0/P1 slice:
 
@@ -263,6 +273,17 @@ For a runnable synthetic contract example:
 ```powershell
 python -m aethelgard.cli supplier-profile validate --input examples/pilot/supplier_profile_contract_demo.json --out reports/cscrm/supplier_profile_contract.normalized.json
 ```
+
+## Delivery Profile
+
+```powershell
+python -m aethelgard.cli delivery-profile validate --input examples/delivery_profile/demo_consultant_profile.json --out reports/delivery-profile/demo_consultant_profile.normalized.json
+```
+
+Delivery profiles are a minimal local handoff contract for consultant labels and report
+footer text. They do not override review, trust-bundle, SBOM, or compliance-safety
+rules. The validator blocks e-mail addresses, phone-like values, IPs, private absolute
+paths, secret-like markers, unsupported fields, and real contact details in examples.
 
 ## Consultant Laptop Delivery
 
@@ -305,6 +326,17 @@ Runtime Docker proof is opt-in:
 .\scripts\consultant_laptop_smoke.ps1
 ```
 
+Docker ML smoke is the post-ML delivery proof. It builds `aethelgard:ml-smoke`, runs
+`--help` and `ml --help`, then executes `ml features`, `ml search`, `ml dedupe`,
+`ml weak-labels`, `ml train-baselines`, `ml classify-docs`, `ml suggest-controls`,
+`ml rank-findings`, and `ml active-review` under `--network none`. Outputs go to
+`reports/docker-ml-smoke` and are scanned for `.env`, token/cookie/authorization
+markers, private paths, and raw snippet markers.
+
+```powershell
+.\scripts\docker_ml_smoke.ps1
+```
+
 Native Python fallback, if Docker is not allowed:
 
 ```powershell
@@ -312,7 +344,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[all]"
 $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = "1"
-$env:PYTHONPATH = "D:\projects\aethelgard\src"
+$env:PYTHONPATH = (Resolve-Path .\src).Path
 python -m aethelgard.cli demo-pilot --examples examples/pilot --out reports/native-demo
 python -m aethelgard.cli public-data validate --manifest examples/public/public_data_manifest.json --out reports/native-public-data/public_data_validation.json
 ```
@@ -382,7 +414,10 @@ Status values:
 - `PILOT_PUBLIC_DATA_READY`: Docker runtime proof exists, static delivery gates pass,
   and real public fixtures validate offline.
 - `PILOT_DOCKER_RUNTIME_READY`: Docker runtime proof exists and static Docker delivery
-  gates pass, but public-data readiness is not complete.
+  plus Docker ML runtime proof exist and static Docker delivery gates pass, but
+  public-data readiness is not complete.
+- `PILOT_DOCKER_RUNTIME_READY_ML_UNVERIFIED`: Docker runtime proof exists, but the
+  post-ML Docker smoke proof has not been written yet.
 - `PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED`: local pilot gates and static Docker
   delivery gates pass; Docker runtime smoke has not been run by this checker.
 - `PILOT_OPS_READY`: local pilot operations pack is present and local readiness gates pass.

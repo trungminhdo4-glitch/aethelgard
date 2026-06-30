@@ -27,15 +27,23 @@ $excludedPathPrefixes = @(
     "dist/",
     "docs/research/",
     ".git/",
+    ".tmp/",
     ".venv/",
     ".venv-fresh/",
     "venv/",
     "env/"
 )
+$excludedExactPaths = @(
+    "AGENTS.md",
+    "AGENT_LOG.md"
+)
 $excludedSuffixes = @(".db", ".sqlite", ".sqlite3", ".log")
 $trackedFiles = git ls-files
 foreach ($file in $trackedFiles) {
     $normalized = $file.Replace("\", "/")
+    if ($excludedExactPaths -contains $normalized) {
+        continue
+    }
     if (($excludedPathPrefixes | Where-Object { $normalized.StartsWith($_) }).Count -gt 0) {
         continue
     }
@@ -56,7 +64,7 @@ $metadata = [ordered]@{
     commit = $commitSha
     docker_image_tag = $imageTag
     vm_required = $false
-    excludes = @("reports", "dist", "docs/research", ".git", ".env", ".venv", "logs", "db")
+    excludes = @("reports", "dist", "docs/research", "AGENTS.md", "AGENT_LOG.md", ".git", ".tmp", ".env", ".venv", "logs", "db")
 }
 $metadata | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -Path (Join-Path $releaseRoot "release_manifest.json")
 

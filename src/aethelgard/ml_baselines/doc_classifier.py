@@ -41,8 +41,8 @@ class DocTypeModel(TypedDict):
     model_format_version: str
     labels: list[str]
     label_priors: dict[str, float]
-    label_token_counts: dict[str, dict[str, int]]
-    label_token_totals: dict[str, int]
+    label_term_counts: dict[str, dict[str, int]]
+    label_term_totals: dict[str, int]
     vocabulary: list[str]
     model_metadata: ModelMetadata
 
@@ -132,8 +132,8 @@ def _train_model(examples: Sequence[TrainingExample], metadata: ModelMetadata) -
         "model_format_version": MODEL_FORMAT_VERSION,
         "labels": labels,
         "label_priors": label_priors,
-        "label_token_counts": label_token_counts,
-        "label_token_totals": label_token_totals,
+        "label_term_counts": label_token_counts,
+        "label_term_totals": label_token_totals,
         "vocabulary": sorted(vocabulary),
         "model_metadata": metadata,
     }
@@ -171,8 +171,8 @@ def _prediction(
 
 def _label_log_score(model: DocTypeModel, label: str, tokens: Sequence[str]) -> float:
     vocabulary_size = max(len(model["vocabulary"]), 1)
-    label_total = model["label_token_totals"].get(label, 0)
-    token_counts = model["label_token_counts"].get(label, {})
+    label_total = model["label_term_totals"].get(label, 0)
+    token_counts = model["label_term_counts"].get(label, {})
     prior = max(model["label_priors"].get(label, 0.0), 1.0 / max(len(model["labels"]), 1))
     score = math.log(prior)
     denominator = label_total + vocabulary_size
@@ -238,8 +238,12 @@ def _load_model(path: Path) -> DocTypeModel:
         "model_format_version": MODEL_FORMAT_VERSION,
         "labels": [str(label) for label in _sequence(payload.get("labels", ()))],
         "label_priors": _float_mapping(payload.get("label_priors", {})),
-        "label_token_counts": _nested_int_mapping(payload.get("label_token_counts", {})),
-        "label_token_totals": _int_mapping(payload.get("label_token_totals", {})),
+        "label_term_counts": _nested_int_mapping(
+            payload.get("label_term_counts", payload.get("label_token_counts", {}))
+        ),
+        "label_term_totals": _int_mapping(
+            payload.get("label_term_totals", payload.get("label_token_totals", {}))
+        ),
         "vocabulary": [str(token) for token in _sequence(payload.get("vocabulary", ()))],
         "model_metadata": metadata,
     }

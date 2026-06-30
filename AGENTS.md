@@ -55,6 +55,7 @@ src/aethelgard/
   trust_bundle.py          # Metadata-only Trust-Bundle-Preview-Export
   sbom.py                  # Offline CycloneDX-SBOM-Inventar + Metadata-Gap-Findings
   supplier_profile.py      # Supplier-Cascade-Profilvertrag + Validator
+  delivery_profile.py      # Lokales Delivery-/White-Label-Profil, metadata-only, keine PII
   ml_baselines/            # Low-Compute-ML-Baselines, lokal, deterministisch, review-only
     __init__.py
     features.py            # Metadata-only Feature JSONL, Text-Hash statt Snippets
@@ -66,6 +67,7 @@ src/aethelgard/
     active_learning.py     # Unsicherheits-/Konflikt-Review-Queue
     weak_labels.py         # Schwache Labels aus transparenten Keyword-Regeln
     model_registry.py      # Modell-/Feature-Metadaten fuer ML-Ausgaben
+    learning_export.py     # Redigierter Review-/Learning-Signal-Export, owner-gated
   mvp1/
     __init__.py            # Public API Re-Exports (Schemas + Parser + PDF + Classifier)
     schemas.py             # pydantic v2 Schemas (ComplianceEvidence)
@@ -114,7 +116,9 @@ scripts/
   check_public_fixtures.py # statischer Fixture Safety Gate
   check_pilot_readiness.py # kontrollierter Paid-Pilot Gate-Report
   check_docker_delivery.py # statischer Docker-Delivery-Gate
+  docker_ml_smoke.ps1      # opt-in Docker-Runtime-Smoke fuer ML-CLI unter --network none
 examples/pilot/            # synthetischer lokaler End-to-End-Pilot-Pack
+examples/delivery_profile/ # synthetisches Berater-/Delivery-Profil ohne echte Kontaktdaten
 Dockerfile                 # lokale CLI-Auslieferung, non-root, keine Reports/Caches im Image
 compose.yaml               # Offline-Demo-Service mit examples read-only und reports writable
 tests/fixtures/public_nis2/ # 17 synthetische Fixtures + golden_labels.json
@@ -142,7 +146,9 @@ tests/mvp1/
 | `trust_bundle.py` | Deterministischer metadata-only Bundle-Preview | Rohzitate, Draft-Antworten, private Pfade, Compliance-Claims exportieren |
 | `sbom.py` | Offline CycloneDX-Komponenten-Inventar und lokale Metadata-Gap-Findings | CVE/API/Netzwerk-Abfragen, rohe SBOM-Felder, SPDX-Halbsupport |
 | `supplier_profile.py` | Supplier-Cascade-Contract mit Referenzen zu Evidence/Questionnaire/SBOM/Risk | Raw Notes, private Pfade, unbekannte Felder, Compliance-Claims |
+| `delivery_profile.py` | Lokales Consultant-/Delivery-Profil normalisieren | Echte Kontakte/PII, Secrets, private Pfade, Safety-Overrides |
 | `ml_baselines/*` | Lokale Low-Compute-Such-/Label-/Dedupe-/Priorisierungs-Vorschlaege | LLMs, Embeddings, Cloud, Kundendaten im Repo, Auto-Compliance, Review-Status ueberschreiben |
+| `ml_baselines/learning_export.py` | Redigierte Review-/Learning-Signale als lokale Datei | Raw Text, Dateinamen/Pfade, Freitext-Notizen, Upload, Training, nicht-allowlistete Labels |
 
 ### Sub-Agent-Regel
 
@@ -384,14 +390,15 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Trust Bundle Preview | OK: `trust-bundle build` erzeugt deterministic metadata-only Preview (`manifest`, Evidence-Index, Questionnaire-/Risk-Summary, README); keine Rohzitate, Drafts, privaten Pfade oder Compliance-Claims | 2026-06-29 |
 | Offline SBOM + Supplier Contracts | OK: `sbom ingest`, `sbom findings` und `supplier-profile validate`; CycloneDX-only, SPDX unsupported, stabile IDs, keine CVE/API/Netzwerk-Abfragen | 2026-06-29 |
 | Pilot Readiness Slice | OK: Review-Metadaten-Sanitization fuer `reviewer`, `reviewed_at`, `review_note`; `demo-pilot` E2E-Flow mit synthetischem Pack und manifest-only Public-Data-Entscheidung | 2026-06-30 |
-| Docker Local Delivery | STATIC_READY_RUNTIME_UNVERIFIED: Dockerfile, `.dockerignore`, Compose, statischer Delivery-Gate und opt-in `scripts/docker_smoke.ps1`; Runtime-Smoke nur bei explizitem Docker-Lauf | 2026-06-30 |
-| Low-Compute ML Baselines | OK: pure-Python Feature-JSONL, BM25, SimHash, Weak Labels, fallback Doc-Type-Classifier, Control-Suggestions, Severity Ranking und Active-Review-Queue; experimental, metadata-only, Human Review erforderlich | 2026-06-30 |
-| Tests | 319/320 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-30 |
+| Docker Local Delivery | RUNTIME_READY_WITH_ML_PROOF: Dockerfile, `.dockerignore`, Compose, statischer Delivery-Gate, `docker_smoke`, `docker_ml_smoke` und `consultant_laptop_smoke` gruen; ML-CLI im Container unter `--network none` getestet | 2026-06-30 |
+| Low-Compute ML Baselines | OK: pure-Python Feature-JSONL, BM25, SimHash, Weak Labels, fallback Doc-Type-Classifier, Control-Suggestions, Severity Ranking, Active-Review-Queue und redigierter Learning-Export; experimental, metadata-only, Human Review/Owner-Gate erforderlich | 2026-06-30 |
+| Delivery Profile | OK: metadata-only `delivery-profile validate`, synthetisches Demo-Profil, keine PII/Secrets/private Pfade, keine Safety-Overrides | 2026-06-30 |
+| Tests | 326/327 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-30 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
 | Real Public Source URL Check | Opt-in; 403/Timeout werden fuer offizielle Quellen als WARN klassifiziert | 2026-06-28 |
-| Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED` | 2026-06-30 |
+| Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_PUBLIC_DATA_READY` nach `docker_smoke` + `docker_ml_smoke` Runtime-Proofs | 2026-06-30 |
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
 | Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-30 |

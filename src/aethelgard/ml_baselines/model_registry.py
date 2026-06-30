@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import subprocess
 from collections.abc import Mapping
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, NotRequired, TypedDict
 
@@ -50,7 +49,7 @@ def build_model_metadata(
         "model_version": _model_version(model_name, model_type),
         "training_data_ref": training_data_ref,
         "feature_schema_version": FEATURE_SCHEMA_VERSION,
-        "generated_at": generated_at or datetime.now(UTC).isoformat(),
+        "generated_at": generated_at or DEFAULT_GENERATED_AT,
         "git_commit": git_commit if git_commit is not None else _git_commit(),
         "experimental": experimental,
         "tool_version": __version__,

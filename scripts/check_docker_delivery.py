@@ -18,6 +18,7 @@ REQUIRED_DOCKERIGNORE_MARKERS: Final[tuple[str, ...]] = (
     ".venv*/",
     "dist/",
     "reports/",
+    ".tmp/",
     "*.log",
     "*.db",
     "docs/research/",
@@ -30,6 +31,7 @@ EXCLUDED_CONTEXT_PARTS: Final[frozenset[str]] = frozenset(
         ".ruff_cache",
         ".venv",
         ".venv-fresh",
+        ".tmp",
         "reports",
         "__pycache__",
     }
@@ -89,10 +91,24 @@ def build_report() -> dict[str, object]:
             ),
         ),
         _check(
+            "docker_ml_smoke_writes_runtime_proof",
+            _script_contains(
+                "docker_ml_smoke.ps1",
+                (
+                    "docker_ml_runtime_proof.json",
+                    "DOCKER_ML_RUNTIME_READY",
+                    "ml",
+                    "features",
+                    "active-review",
+                    "Assert-CleanMlOutput",
+                ),
+            ),
+        ),
+        _check(
             "consultant_laptop_smoke_exists",
             _script_contains(
                 "consultant_laptop_smoke.ps1",
-                ("docker build", "public-data validate", "Assert-CleanOutput"),
+                ("docker build", "ml --help", "public-data validate", "Assert-CleanOutput"),
             ),
         ),
         _check(
@@ -107,6 +123,7 @@ def build_report() -> dict[str, object]:
             _readme_contains(
                 (
                     "Consultant Laptop Delivery",
+                    "Docker ML smoke",
                     "No VM is required",
                     "Native Python fallback",
                     "SHA256SUMS.txt",

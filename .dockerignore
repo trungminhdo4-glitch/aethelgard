@@ -20,6 +20,7 @@ htmlcov/
 reports/
 *.log
 *.tmp
+.tmp/
 *.db
 *.sqlite
 *.sqlite3

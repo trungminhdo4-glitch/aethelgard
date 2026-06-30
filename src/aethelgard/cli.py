@@ -17,6 +17,7 @@ from aethelgard.control_catalog import (
     build_catalog_validation_report,
     load_control_catalog_bundle,
 )
+from aethelgard.delivery_profile import DeliveryProfileError, validate_delivery_profile
 from aethelgard.evidence_bridge import (
     EvidenceBridgeError,
     bridge_reviewed_report_to_evidence_store,
@@ -34,6 +35,10 @@ from aethelgard.ml_baselines.doc_classifier import (
     train_doc_type_baseline,
 )
 from aethelgard.ml_baselines.features import FeatureExtractionError, write_features_jsonl
+from aethelgard.ml_baselines.learning_export import (
+    LearningExportError,
+    export_learning_feedback,
+)
 from aethelgard.ml_baselines.model_registry import write_json as write_ml_json
 from aethelgard.ml_baselines.severity import SeverityError, rank_findings
 from aethelgard.ml_baselines.simhash import SimHashError, detect_near_duplicates
@@ -65,6 +70,7 @@ PREFLIGHT_BLOCK_EXIT_CODE: Final[int] = 3
 REVIEW_APPLY_ERROR_EXIT_CODE: Final[int] = 4
 C_SCRM_ERROR_EXIT_CODE: Final[int] = 5
 ML_ERROR_EXIT_CODE: Final[int] = 6
+DELIVERY_PROFILE_ERROR_EXIT_CODE: Final[int] = 7
 DEMO_PILOT_SUMMARY_NAME: Final[str] = "demo_pilot_summary.json"
 DEMO_REVIEWED_AT: Final[str] = "2026-06-30T00:00:00+00:00"
 DEMO_ACCEPTABLE_CATEGORIES: Final[frozenset[str]] = frozenset(
@@ -361,6 +367,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output normalized supplier profile contract JSON file.",
     )
 
+    delivery_profile_parser = subparsers.add_parser(
+        "delivery-profile",
+        help="Validate metadata-only delivery/white-label profile files.",
+    )
+    delivery_profile_subparsers = delivery_profile_parser.add_subparsers(
+        dest="delivery_profile_command",
+        required=True,
+    )
+    delivery_profile_validate_parser = delivery_profile_subparsers.add_parser(
+        "validate",
+        help="Validate and normalize a local delivery profile JSON file.",
+    )
+    delivery_profile_validate_parser.add_argument(
+        "--input",
+        required=True,
+        type=Path,
+        help="Delivery profile JSON file.",
+    )
+    delivery_profile_validate_parser.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="Output normalized delivery profile JSON file.",
+    )
+
     ml_parser = subparsers.add_parser(
         "ml",
         help="Run local experimental low-compute ML baselines.",
@@ -528,6 +559,29 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("reports") / "ml" / "active_review_queue.json",
         help="Output review queue JSON path.",
     )
+
+    ml_export_parser = ml_subparsers.add_parser(
+        "export-learning-feedback",
+        help="Export redacted review-feedback signals for owner-approved learning.",
+    )
+    ml_export_parser.add_argument(
+        "--review-csv",
+        required=True,
+        type=Path,
+        help="Reviewed CSV with finding_id/item_id and allowlisted review_status.",
+    )
+    ml_export_parser.add_argument(
+        "--predictions",
+        required=True,
+        type=Path,
+        help="Metadata-only ML output JSON to join with review decisions.",
+    )
+    ml_export_parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reports") / "ml" / "learning_export.json",
+        help="Output redacted learning-feedback JSON path.",
+    )
     return parser
 
 
@@ -562,6 +616,7 @@ def main(argv: list[str] | None = None) -> int:
         "sbom",
         "public-data",
         "supplier-profile",
+        "delivery-profile",
         "ml",
     }:
         exit_code = _run_local_workflow(args)
@@ -580,6 +635,7 @@ def _run_local_workflow(args: argparse.Namespace) -> int:
         "sbom": _run_sbom,
         "public-data": _run_public_data,
         "supplier-profile": _run_supplier_profile,
+        "delivery-profile": _run_delivery_profile,
         "ml": _run_ml,
     }
     handler = handlers.get(str(args.command))
@@ -962,6 +1018,24 @@ def _run_supplier_profile(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_delivery_profile(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        if args.delivery_profile_command == "validate":
+            validate_delivery_profile(cast(Path, args.input), output_path)
+        else:
+            raise DeliveryProfileError(
+                "unknown delivery-profile command: %s" % args.delivery_profile_command
+            )
+    except (ReviewApplyError, DeliveryProfileError) as exc:
+        print(
+            "delivery-profile %s failed: %s" % (args.delivery_profile_command, exc),
+            file=sys.stderr,
+        )
+        return DELIVERY_PROFILE_ERROR_EXIT_CODE
+    return 0
+
+
 def _run_ml(args: argparse.Namespace) -> int:
     handlers: Mapping[str, Callable[[argparse.Namespace], int]] = {
         "features": _run_ml_features,
@@ -973,6 +1047,7 @@ def _run_ml(args: argparse.Namespace) -> int:
         "suggest-controls": _run_ml_suggest_controls,
         "rank-findings": _run_ml_rank_findings,
         "active-review": _run_ml_active_review,
+        "export-learning-feedback": _run_ml_export_learning_feedback,
     }
     try:
         command = str(args.ml_command)
@@ -986,6 +1061,7 @@ def _run_ml(args: argparse.Namespace) -> int:
         ControlMapperError,
         DocClassifierError,
         FeatureExtractionError,
+        LearningExportError,
         ReviewApplyError,
         SeverityError,
         SimHashError,
@@ -1073,6 +1149,16 @@ def _run_ml_active_review(args: argparse.Namespace) -> int:
         review_csv_path=cast(Path | None, args.review_csv),
     )
     write_ml_json(output_path, report)
+    return 0
+
+
+def _run_ml_export_learning_feedback(args: argparse.Namespace) -> int:
+    output_path = _resolve_output_path(cast(Path, args.out))
+    export_learning_feedback(
+        review_csv_path=cast(Path, args.review_csv),
+        predictions_path=cast(Path, args.predictions),
+        out_path=output_path,
+    )
     return 0
 
 

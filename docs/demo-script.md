@@ -17,7 +17,7 @@
 ## Commands
 
 ```powershell
-$env:PYTHONPATH = "D:\projects\aethelgard\src"
+$env:PYTHONPATH = (Resolve-Path .\src).Path
 python -m aethelgard.cli triage --input tests/fixtures/customer_like_nis2 --out reports/outreach-demo --audit
 python -m aethelgard.cli eval --fixtures tests/fixtures/customer_like_nis2 --labels tests/fixtures/customer_like_nis2/golden_labels.json --out reports/outreach-eval --audit
 ```
