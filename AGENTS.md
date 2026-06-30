@@ -55,6 +55,17 @@ src/aethelgard/
   trust_bundle.py          # Metadata-only Trust-Bundle-Preview-Export
   sbom.py                  # Offline CycloneDX-SBOM-Inventar + Metadata-Gap-Findings
   supplier_profile.py      # Supplier-Cascade-Profilvertrag + Validator
+  ml_baselines/            # Low-Compute-ML-Baselines, lokal, deterministisch, review-only
+    __init__.py
+    features.py            # Metadata-only Feature JSONL, Text-Hash statt Snippets
+    bm25.py                # BM25-Suche ohne Embeddings, Output nur IDs/Scores/Reasons
+    simhash.py             # SimHash-Nahe-Dubletten, Review-Paare ohne Rohtext
+    doc_classifier.py      # Fallback Dokumenttyp-Klassifikation ohne harte sklearn-Dependency
+    control_mapper.py      # Regelbasierte Multi-Label-Control-Vorschlaege, nie auto-fulfilled
+    severity.py            # Prioritaets-/Evidence-Quality-Vorschlaege aus Features
+    active_learning.py     # Unsicherheits-/Konflikt-Review-Queue
+    weak_labels.py         # Schwache Labels aus transparenten Keyword-Regeln
+    model_registry.py      # Modell-/Feature-Metadaten fuer ML-Ausgaben
   mvp1/
     __init__.py            # Public API Re-Exports (Schemas + Parser + PDF + Classifier)
     schemas.py             # pydantic v2 Schemas (ComplianceEvidence)
@@ -131,6 +142,7 @@ tests/mvp1/
 | `trust_bundle.py` | Deterministischer metadata-only Bundle-Preview | Rohzitate, Draft-Antworten, private Pfade, Compliance-Claims exportieren |
 | `sbom.py` | Offline CycloneDX-Komponenten-Inventar und lokale Metadata-Gap-Findings | CVE/API/Netzwerk-Abfragen, rohe SBOM-Felder, SPDX-Halbsupport |
 | `supplier_profile.py` | Supplier-Cascade-Contract mit Referenzen zu Evidence/Questionnaire/SBOM/Risk | Raw Notes, private Pfade, unbekannte Felder, Compliance-Claims |
+| `ml_baselines/*` | Lokale Low-Compute-Such-/Label-/Dedupe-/Priorisierungs-Vorschlaege | LLMs, Embeddings, Cloud, Kundendaten im Repo, Auto-Compliance, Review-Status ueberschreiben |
 
 ### Sub-Agent-Regel
 
@@ -302,6 +314,11 @@ from aethelgard.mvp1 import (
 - Docker-Delivery-Tests: `test_docker_delivery.py` prueft Dockerfile, Compose,
   `.dockerignore`, non-root Entry Point, offline Mount-Konzept und statische
   Docker-Kontext-Safety.
+- Low-Compute-ML-Tests: `test_ml_features.py`, `test_ml_bm25.py`,
+  `test_ml_simhash.py`, `test_ml_weak_labels.py`, `test_ml_doc_classifier.py`,
+  `test_ml_control_mapper.py`, `test_ml_severity.py`, `test_ml_active_learning.py`,
+  `test_ml_cli.py` pruefen metadata-only Outputs, optionale/fallbackfaehige Modelle,
+  Review-only Control-Vorschlaege, Dedupe, Weak-Label-Konflikte und CLI-Komposition.
 
 ## Bekannte Gotchas
 
@@ -368,7 +385,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Offline SBOM + Supplier Contracts | OK: `sbom ingest`, `sbom findings` und `supplier-profile validate`; CycloneDX-only, SPDX unsupported, stabile IDs, keine CVE/API/Netzwerk-Abfragen | 2026-06-29 |
 | Pilot Readiness Slice | OK: Review-Metadaten-Sanitization fuer `reviewer`, `reviewed_at`, `review_note`; `demo-pilot` E2E-Flow mit synthetischem Pack und manifest-only Public-Data-Entscheidung | 2026-06-30 |
 | Docker Local Delivery | STATIC_READY_RUNTIME_UNVERIFIED: Dockerfile, `.dockerignore`, Compose, statischer Delivery-Gate und opt-in `scripts/docker_smoke.ps1`; Runtime-Smoke nur bei explizitem Docker-Lauf | 2026-06-30 |
-| Tests | 297/298 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-30 |
+| Low-Compute ML Baselines | OK: pure-Python Feature-JSONL, BM25, SimHash, Weak Labels, fallback Doc-Type-Classifier, Control-Suggestions, Severity Ranking und Active-Review-Queue; experimental, metadata-only, Human Review erforderlich | 2026-06-30 |
+| Tests | 319/320 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-30 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |

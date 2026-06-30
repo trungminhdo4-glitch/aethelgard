@@ -25,6 +25,9 @@ human pre-review of security documentation through local evidence triage.
   CycloneDX public fixture.
 - Supplier profile contract validator for local cascade references.
 - Full synthetic `demo-pilot` CLI flow for local consultant/laptop validation.
+- Experimental low-compute ML baselines for metadata-only feature extraction, BM25
+  search, SimHash duplicate review, weak labels, fallback document classification,
+  control suggestions, severity ranking, and active-review queues.
 - Dockerfile and Compose profile for local offline CLI delivery.
 - Evaluation CLI with pilot-readiness thresholds.
 - Calibration reports with proxy quality indicators for synthetic fixture packs.
@@ -208,6 +211,42 @@ python -m aethelgard.cli sbom findings --input examples/public/cyclonedx_hellowo
 This is a public reference-source validation path only. It is not a live KEV feed, not
 a vulnerability assessment, not legal advice, not an audit, and not a compliance
 decision.
+
+## Experimental Low-Compute ML Baselines
+
+The `ml` CLI group adds a local, deterministic assistance layer. It is experimental,
+metadata-only, and review-first. It does not use LLMs, embeddings, fine-tuning, cloud
+APIs, SaaS processing, customer data in the repo, or automatic compliance decisions.
+All labels, priorities, search hits, duplicates, and control mappings are suggestions
+that require human review.
+
+```powershell
+python -m aethelgard.cli ml features --input examples/pilot/documents --out reports/ml/features.jsonl
+python -m aethelgard.cli ml search --index examples/pilot/documents --query "backup restore test" --out reports/ml/search_results.json
+python -m aethelgard.cli ml dedupe --input examples/pilot/documents --out reports/ml/duplicates.json
+python -m aethelgard.cli ml weak-labels --input examples/pilot/documents --out reports/ml/weak_labels.jsonl
+python -m aethelgard.cli ml train-baselines --task doc-type --input training_fixture.json --out reports/ml/models/doc_type_model.json
+python -m aethelgard.cli ml classify-docs --model reports/ml/models/doc_type_model.json --input examples/pilot/documents --out reports/ml/doc_predictions.json
+python -m aethelgard.cli ml suggest-controls --input examples/pilot/documents --out reports/ml/control_suggestions.json
+python -m aethelgard.cli ml rank-findings --input reports/ml/features.jsonl --out reports/ml/ranked_findings.json
+python -m aethelgard.cli ml active-review --predictions reports/ml/doc_predictions.json --weak-labels reports/ml/weak_labels.jsonl --duplicates reports/ml/duplicates.json --severity reports/ml/ranked_findings.json --out reports/ml/active_review_queue.json
+```
+
+Outputs avoid raw snippets and private absolute paths. Feature rows contain stable IDs,
+relative source references, SHA-256 text hashes, compact booleans, and word counts.
+Search and mapping outputs expose only scores, IDs, relative refs, and reason codes.
+Model outputs include explicit registry metadata: model name/type/version, feature
+schema, training-data reference, generated timestamp, git commit when available, and
+`experimental: true`.
+
+Implemented P0/P1 slice:
+
+- P0: feature extraction, BM25 search, SimHash dedupe, weak labels, fallback document
+  classification, rule-based multi-label control suggestions, and active-review queue.
+- P1: rule-based severity/evidence-quality ranking from structured features.
+- P2: future sklearn-backed `ComplementNB`, `SGDClassifier`/`OneVsRestClassifier`, and
+  calibrated severity models once owner-approved dependencies and review-feedback
+  training fixtures exist.
 
 ## Supplier Profile Contract
 

@@ -22,6 +22,22 @@ from aethelgard.evidence_bridge import (
     bridge_reviewed_report_to_evidence_store,
 )
 from aethelgard.evidence_store import EvidenceStoreError
+from aethelgard.ml_baselines.active_learning import (
+    ActiveLearningError,
+    build_active_review_queue,
+)
+from aethelgard.ml_baselines.bm25 import BM25Error, search_bm25
+from aethelgard.ml_baselines.control_mapper import ControlMapperError, suggest_controls
+from aethelgard.ml_baselines.doc_classifier import (
+    DocClassifierError,
+    classify_documents,
+    train_doc_type_baseline,
+)
+from aethelgard.ml_baselines.features import FeatureExtractionError, write_features_jsonl
+from aethelgard.ml_baselines.model_registry import write_json as write_ml_json
+from aethelgard.ml_baselines.severity import SeverityError, rank_findings
+from aethelgard.ml_baselines.simhash import SimHashError, detect_near_duplicates
+from aethelgard.ml_baselines.weak_labels import write_weak_labels_jsonl
 from aethelgard.public_data import PublicDataError, validate_public_data_manifest
 from aethelgard.questionnaire import QUESTIONNAIRE_JSON_NAME, QuestionnaireError, run_questionnaire
 from aethelgard.redaction_preflight import (
@@ -48,6 +64,7 @@ REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = review_module.REVIEW_CSV_COLUMNS
 PREFLIGHT_BLOCK_EXIT_CODE: Final[int] = 3
 REVIEW_APPLY_ERROR_EXIT_CODE: Final[int] = 4
 C_SCRM_ERROR_EXIT_CODE: Final[int] = 5
+ML_ERROR_EXIT_CODE: Final[int] = 6
 DEMO_PILOT_SUMMARY_NAME: Final[str] = "demo_pilot_summary.json"
 DEMO_REVIEWED_AT: Final[str] = "2026-06-30T00:00:00+00:00"
 DEMO_ACCEPTABLE_CATEGORIES: Final[frozenset[str]] = frozenset(
@@ -343,6 +360,174 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Output normalized supplier profile contract JSON file.",
     )
+
+    ml_parser = subparsers.add_parser(
+        "ml",
+        help="Run local experimental low-compute ML baselines.",
+    )
+    ml_subparsers = ml_parser.add_subparsers(dest="ml_command", required=True)
+    ml_features_parser = ml_subparsers.add_parser(
+        "features",
+        help="Extract metadata-only feature records as JSONL.",
+    )
+    ml_features_parser.add_argument("--input", required=True, type=Path, help="Input file or dir.")
+    ml_features_parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reports") / "ml" / "features.jsonl",
+        help="Output feature JSONL path.",
+    )
+
+    ml_search_parser = ml_subparsers.add_parser(
+        "search",
+        help="Search local documents or feature records with BM25.",
+    )
+    ml_search_parser.add_argument(
+        "--index",
+        required=True,
+        type=Path,
+        help="Input corpus or JSONL.",
+    )
+    ml_search_parser.add_argument("--query", required=True, help="Search query.")
+    ml_search_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=10,
+        help="Maximum number of results.",
+    )
+    ml_search_parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reports") / "ml" / "search_results.json",
+        help="Output search JSON path.",
+    )
+
+    ml_dedupe_parser = ml_subparsers.add_parser(
+        "dedupe",
+        help="Detect possible duplicate or versioned items with SimHash.",
+    )
+    ml_dedupe_parser.add_argument("--input", required=True, type=Path, help="Input corpus.")
+    ml_dedupe_parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.9,
+        help="Minimum SimHash similarity.",
+    )
+    ml_dedupe_parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reports") / "ml" / "duplicates.json",
+        help="Output duplicate JSON path.",
+    )
+
+    ml_weak_labels_parser = ml_subparsers.add_parser(
+        "weak-labels",
+        help="Create weak supervision label suggestions as JSONL.",
+    )
+    ml_weak_labels_parser.add_argument("--input", required=True, type=Path, help="Input corpus.")
+    ml_weak_labels_parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reports") / "ml" / "weak_labels.jsonl",
+        help="Output weak-label JSONL path.",
+    )
+
+    ml_train_parser = ml_subparsers.add_parser(
+        "train-baselines",
+        help="Train a tiny fallback baseline model.",
+    )
+    ml_train_parser.add_argument(
+        "--task",
+        required=True,
+        choices=("doc-type",),
+        help="Baseline task to train.",
+    )
+    ml_train_parser.add_argument("--input", required=True, type=Path, help="Training fixture.")
+    ml_train_parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reports") / "ml" / "models" / "doc_type_model.json",
+        help="Output model JSON path.",
+    )
+
+    ml_classify_docs_parser = ml_subparsers.add_parser(
+        "classify-docs",
+        help="Classify documents with a trained fallback model.",
+    )
+    ml_classify_docs_parser.add_argument("--model", required=True, type=Path, help="Model JSON.")
+    ml_classify_docs_parser.add_argument("--input", required=True, type=Path, help="Input corpus.")
+    ml_classify_docs_parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reports") / "ml" / "doc_predictions.json",
+        help="Output prediction JSON path.",
+    )
+
+    ml_suggest_controls_parser = ml_subparsers.add_parser(
+        "suggest-controls",
+        help="Suggest C-SCRM controls for local items.",
+    )
+    ml_suggest_controls_parser.add_argument(
+        "--input",
+        required=True,
+        type=Path,
+        help="Input corpus.",
+    )
+    ml_suggest_controls_parser.add_argument(
+        "--min-confidence",
+        type=float,
+        default=0.55,
+        help="Minimum suggestion confidence.",
+    )
+    ml_suggest_controls_parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reports") / "ml" / "control_suggestions.json",
+        help="Output suggestion JSON path.",
+    )
+
+    ml_rank_parser = ml_subparsers.add_parser(
+        "rank-findings",
+        help="Suggest finding/evidence priority for human review.",
+    )
+    ml_rank_parser.add_argument(
+        "--input",
+        required=True,
+        type=Path,
+        help="Input corpus or features.",
+    )
+    ml_rank_parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reports") / "ml" / "ranked_findings.json",
+        help="Output ranking JSON path.",
+    )
+
+    ml_active_parser = ml_subparsers.add_parser(
+        "active-review",
+        help="Build a human-review queue from ML baseline outputs.",
+    )
+    ml_active_parser.add_argument("--predictions", type=Path, default=None, help="Prediction JSON.")
+    ml_active_parser.add_argument(
+        "--weak-labels",
+        type=Path,
+        default=None,
+        help="Weak-label JSONL.",
+    )
+    ml_active_parser.add_argument("--duplicates", type=Path, default=None, help="Duplicate JSON.")
+    ml_active_parser.add_argument("--severity", type=Path, default=None, help="Severity JSON.")
+    ml_active_parser.add_argument(
+        "--review-csv",
+        type=Path,
+        default=None,
+        help="Optional review CSV.",
+    )
+    ml_active_parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reports") / "ml" / "active_review_queue.json",
+        help="Output review queue JSON path.",
+    )
     return parser
 
 
@@ -377,6 +562,7 @@ def main(argv: list[str] | None = None) -> int:
         "sbom",
         "public-data",
         "supplier-profile",
+        "ml",
     }:
         exit_code = _run_local_workflow(args)
     else:
@@ -394,6 +580,7 @@ def _run_local_workflow(args: argparse.Namespace) -> int:
         "sbom": _run_sbom,
         "public-data": _run_public_data,
         "supplier-profile": _run_supplier_profile,
+        "ml": _run_ml,
     }
     handler = handlers.get(str(args.command))
     if handler is not None:
@@ -773,6 +960,133 @@ def _run_supplier_profile(args: argparse.Namespace) -> int:
         )
         return C_SCRM_ERROR_EXIT_CODE
     return 0
+
+
+def _run_ml(args: argparse.Namespace) -> int:
+    handlers: Mapping[str, Callable[[argparse.Namespace], int]] = {
+        "features": _run_ml_features,
+        "search": _run_ml_search,
+        "dedupe": _run_ml_dedupe,
+        "weak-labels": _run_ml_weak_labels,
+        "train-baselines": _run_ml_train_baselines,
+        "classify-docs": _run_ml_classify_docs,
+        "suggest-controls": _run_ml_suggest_controls,
+        "rank-findings": _run_ml_rank_findings,
+        "active-review": _run_ml_active_review,
+    }
+    try:
+        command = str(args.ml_command)
+        handler = handlers.get(command)
+        if handler is None:
+            raise ActiveLearningError("unknown ml command: %s" % command)
+        handler(args)
+    except (
+        ActiveLearningError,
+        BM25Error,
+        ControlMapperError,
+        DocClassifierError,
+        FeatureExtractionError,
+        ReviewApplyError,
+        SeverityError,
+        SimHashError,
+        ValueError,
+    ) as exc:
+        print("ml %s failed: %s" % (args.ml_command, exc), file=sys.stderr)
+        return ML_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_ml_features(args: argparse.Namespace) -> int:
+    output_path = _resolve_output_path(cast(Path, args.out))
+    write_features_jsonl(cast(Path, args.input), output_path)
+    return 0
+
+
+def _run_ml_search(args: argparse.Namespace) -> int:
+    output_path = _resolve_output_path(cast(Path, args.out))
+    report = search_bm25(
+        cast(Path, args.index),
+        str(args.query),
+        top_k=int(args.top_k),
+    )
+    write_ml_json(output_path, report)
+    return 0
+
+
+def _run_ml_dedupe(args: argparse.Namespace) -> int:
+    output_path = _resolve_output_path(cast(Path, args.out))
+    report = detect_near_duplicates(
+        cast(Path, args.input),
+        threshold=float(args.threshold),
+    )
+    write_ml_json(output_path, report)
+    return 0
+
+
+def _run_ml_weak_labels(args: argparse.Namespace) -> int:
+    output_path = _resolve_output_path(cast(Path, args.out))
+    write_weak_labels_jsonl(cast(Path, args.input), output_path)
+    return 0
+
+
+def _run_ml_train_baselines(args: argparse.Namespace) -> int:
+    output_path = _resolve_output_path(cast(Path, args.out))
+    if str(args.task) == "doc-type":
+        train_doc_type_baseline(cast(Path, args.input), output_path)
+        return 0
+    raise DocClassifierError("unsupported ML task: %s" % args.task)
+
+
+def _run_ml_classify_docs(args: argparse.Namespace) -> int:
+    output_path = _resolve_output_path(cast(Path, args.out))
+    report = classify_documents(cast(Path, args.model), cast(Path, args.input))
+    write_ml_json(output_path, report)
+    return 0
+
+
+def _run_ml_suggest_controls(args: argparse.Namespace) -> int:
+    output_path = _resolve_output_path(cast(Path, args.out))
+    report = suggest_controls(
+        cast(Path, args.input),
+        min_confidence=float(args.min_confidence),
+    )
+    write_ml_json(output_path, report)
+    return 0
+
+
+def _run_ml_rank_findings(args: argparse.Namespace) -> int:
+    output_path = _resolve_output_path(cast(Path, args.out))
+    report = rank_findings(cast(Path, args.input))
+    write_ml_json(output_path, report)
+    return 0
+
+
+def _run_ml_active_review(args: argparse.Namespace) -> int:
+    output_path = _resolve_output_path(cast(Path, args.out))
+    if not _has_active_review_input(args):
+        raise ActiveLearningError("active-review requires at least one input")
+    report = build_active_review_queue(
+        predictions_path=cast(Path | None, args.predictions),
+        weak_labels_path=cast(Path | None, args.weak_labels),
+        duplicates_path=cast(Path | None, args.duplicates),
+        severity_path=cast(Path | None, args.severity),
+        review_csv_path=cast(Path | None, args.review_csv),
+    )
+    write_ml_json(output_path, report)
+    return 0
+
+
+def _has_active_review_input(args: argparse.Namespace) -> bool:
+    return any(
+        value is not None
+        for value in (
+            args.predictions,
+            args.weak_labels,
+            args.duplicates,
+            args.severity,
+            args.review_csv,
+        )
+    )
 
 
 def _resolve_output_path(path: Path) -> Path:

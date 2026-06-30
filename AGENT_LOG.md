@@ -119,3 +119,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Review-Metadaten-Sanitization, voller synthetischer `demo-pilot`-Flow, manifest-only Public-Data-Entscheidung, Dockerfile/Compose und statische Delivery-Gates |
 | Commit | - |
 | Ergebnis | OK: Start-HEAD `1865320ca45835f34b1612004be46eade295884d`; echte Gaps: `reviewer`/`reviewed_at` unsanitized, raw invalid `review_status` in Warnings, kein einzelner Full-Pilot-Flow, keine Docker-Artefakte; umgesetzt mit Tests, `pytest` (297 passed, 1 skipped, 17 subtests), `py_compile`, targeted `ruff`, `mypy src`, `demo-pilot`, Docker-Static-Gate und Pilot-Readiness `PILOT_DOCKER_STATIC_READY_RUNTIME_UNVERIFIED`; Public Data: keine Drittquelle ingested, lokale synthetische SBOM mit SHA256 manifestiert; keine Secrets/PII/.env gelesen oder beruehrt; Docker Runtime-Smoke separat via `scripts/docker_smoke.ps1` |
+
+### 2026-06-30 17:00 - Low-compute ML baselines
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Experimentaler lokaler ML-Assistenz-Layer fuer Features, BM25, SimHash, Weak Labels, fallback Doc-Type-Klassifikation, Control-Suggestions, Severity Ranking und Active-Review-Queue |
+| Commit | - |
+| Ergebnis | OK: Start-HEAD `42e227818059a8e8657169a6305bf34c6aa4cad0`; pure-Python ohne neue Dependencies, sklearn fallbackfaehig und auf diesem System nicht installiert; `pytest` (319 passed, 1 skipped, 17 subtests), `compileall`, `ruff check .`, `mypy src`, Fixture-Safety, Pilot-Readiness `PILOT_PUBLIC_DATA_READY`, `git diff --check` gruen; Beispieloutputs unter `reports/ml/`; keine raw Snippets, privaten Pfade, Secrets, Kundendaten, LLMs, Cloud, Docker-Runtime oder Netzwerk |
