@@ -151,3 +151,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Diff-Review, minimale Stabilisierung und Commit-Readiness fuer den vorhandenen Product-Slice |
 | Commit | - |
 | Ergebnis | OK: Start-HEAD `c92cc79b2fcd34592ce7b7dc6c86cea1fe41adce`; fixte projektgebundene `answer-vault --db`-Pfade, Custom-DB-Readiness und explizite HTML-Disclaimer (`local triage`, `human review required`, `no compliance guarantee`); `py_compile`, fokussierte Product-Slice-Tests (11 passed), `pytest -q` (337 passed, 1 skipped), `ruff check .`, `mypy src`, Fixture-Safety, Pilot-Readiness und Product-Smoke `PILOT_PRODUCT_SLICE_READY` gruen; Output-Validierung bestaetigt CSV/JSON/SQLite, stabile Evidence-IDs und keine Shareable-Leakage-Marker; kein Docker, Push, Merge, Rebase, `.env`, Secrets, echte Kundendaten, LLMs, Cloud oder Netzwerk |
+
+### 2026-07-01 22:35 - Pilot demo marketing pack
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Statische Landingpage, Demo-Video-Script, Outreach-Pack, Pilot-Quickstart und Marketing-Claim-Gate fuer den redacted Pilot-Demo-Flow |
+| Commit | - |
+| Ergebnis | OK: Start-HEAD `20fe2fd72233b723cedfd74dc29b06cbfe4089b3`; umgesetzt ohne neue Dependencies, SaaS, externe APIs, Docker-Runtime, echte Kundendaten, Secrets oder private Outputs; `pytest -q` (341 passed, 1 skipped, 17 subtests), `ruff check .`, `mypy src`, Fixture-Safety, Marketing-Claim-Gate, Docker-Static-Gate, Pilot-Readiness `PILOT_PUBLIC_DATA_READY` und redacted Product-Smoke `PILOT_PRODUCT_SLICE_READY` gruen; direkter `python -m aethelgard.cli ...` Systemlauf scheiterte wegen nicht installiertem Package und wurde mit `.venv-fresh` erfolgreich wiederholt |

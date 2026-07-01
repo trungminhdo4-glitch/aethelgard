@@ -119,9 +119,11 @@ scripts/
   check_public_fixtures.py # statischer Fixture Safety Gate
   check_pilot_readiness.py # kontrollierter Paid-Pilot Gate-Report
   check_docker_delivery.py # statischer Docker-Delivery-Gate
+  check_marketing_claims.py # statischer Marketing-Claim-/Kontakt-Safety-Gate
   docker_ml_smoke.ps1      # opt-in Docker-Runtime-Smoke fuer ML-CLI unter --network none
 examples/pilot/            # synthetischer lokaler End-to-End-Pilot-Pack
 examples/delivery_profile/ # synthetisches Berater-/Delivery-Profil ohne echte Kontaktdaten
+marketing/                 # statische Landingpage, Demo-Video-Script, Outreach-Pack
 Dockerfile                 # lokale CLI-Auslieferung, non-root, keine Reports/Caches im Image
 compose.yaml               # Offline-Demo-Service mit examples read-only und reports writable
 tests/fixtures/public_nis2/ # 17 synthetische Fixtures + golden_labels.json
@@ -404,7 +406,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Low-Compute ML Baselines | OK: pure-Python Feature-JSONL, BM25, SimHash, Weak Labels, fallback Doc-Type-Classifier, Control-Suggestions, Severity Ranking, Active-Review-Queue und redigierter Learning-Export; experimental, metadata-only, Human Review/Owner-Gate erforderlich | 2026-06-30 |
 | Delivery Profile | OK: metadata-only `delivery-profile validate`, synthetisches Demo-Profil, keine PII/Secrets/private Pfade, keine Safety-Overrides | 2026-06-30 |
 | Pilot Product Slice | OK: `pilot-product`, `document-ingest`, `answer-vault`, `workspace inspect/purge`; SQLite Answer Vault, shareable/private Output-Split, Missing Evidence, Review Queue und HTML Preview; CLI-DB-Pfade projektgebunden, explizite Review-Disclaimer, keine Compliance-Garantie | 2026-07-01 |
-| Tests | 337/338 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-01 |
+| Pilot Demo Marketing Pack | OK: statische Landingpage, Demo-Video-Script, Outreach-Pack, `docs/pilot_quickstart.md`, reproduzierbarer redacted `pilot-product` Demo-Run und `check_marketing_claims.py`; Docker-Runtime bleibt Owner-Gate | 2026-07-01 |
+| Tests | 341/342 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-01 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (30 Dateien) | 2026-07-01 |
@@ -418,6 +421,6 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)
 
-- Owner waehlt manuell 3-5 Zielunternehmen aus und nutzt die MSP/Security-Beratung-E-Mail mit engem Claim fuer eine 15-Minuten-Demo-Anfrage.
-- Naechster Produkthebel: Demo-Report mit NIS2-Control-Coverage an synthetischen oder explizit owner-freigegebenen redacted Dokumenten zeigen.
-- First-Wave-Drafts manuell ueber oeffentliche Firmenkanaele senden: NETWORK ASSISTANCE, 030-IT, procado; danach Tracker aktualisieren und keine Follow-ups ohne neues Owner-Gate senden.
+- Owner ersetzt `TODO_CONTACT`, laesst Landingpage/Outreach-Texte legal/privacy-reviewen und deployt danach `marketing/landing/index.html`.
+- Owner nimmt das 60-90s Demo-Video anhand `marketing/demo_video_script.md` mit synthetischem `reports/pilot-product-demo` Output auf.
+- First-Wave-Outreach gezielt und manuell ueber owner-gepruefte Kanaele starten; keine echten Kundendokumente ohne Privacy-/Legal-Gate.

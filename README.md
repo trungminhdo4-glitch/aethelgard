@@ -33,6 +33,7 @@ human pre-review of security documentation through local evidence triage.
 - Privacy-safe learning-feedback export for owner-reviewed, redacted ML signals.
 - Metadata-only delivery-profile validator for local consultant/white-label handoff.
 - Dockerfile and Compose profile for local offline CLI delivery.
+- Static pilot landingpage, demo-video script, outreach copy, and marketing-claim gate.
 - Evaluation CLI with pilot-readiness thresholds.
 - Calibration reports with proxy quality indicators for synthetic fixture packs.
 - Optional metadata-only audit ledger for CLI runs.
@@ -56,6 +57,7 @@ python -m compileall -q src tests scripts
 python -m pytest -q
 python scripts/check_public_fixtures.py
 python scripts/check_pilot_readiness.py --out reports/readiness
+python scripts/check_marketing_claims.py
 ```
 
 ## Demo Command
@@ -176,6 +178,39 @@ The command inventories supported and unsupported files, marks images as
 `ocr_required`, imports reviewed reusable answers into the local SQLite answer vault,
 reuses only reviewed answer-vault entries as reviewed drafts, and routes uncertain or
 missing answers to human review. Shareable outputs avoid raw snippets and private paths.
+
+## Pilot Demo Marketing Pack
+
+The demo-ready marketing pack is static and local-only:
+
+- Landingpage preview: `marketing/landing/index.html`
+- Demo-video script: `marketing/demo_video_script.md`
+- Outreach templates: `marketing/outreach/`
+- Minimal pilot quickstart: `docs/pilot_quickstart.md`
+
+Run the reproducible redacted demo before screenshots or recording:
+
+```powershell
+python -m aethelgard.cli pilot-product --workspace examples/pilot --out reports/pilot-product-demo --client-id demo-client --case-id case001
+```
+
+Then open:
+
+- `reports/pilot-product-demo/shareable_redacted/coverage_report.html`
+- `marketing/landing/index.html`
+
+Marketing text is guarded by:
+
+```powershell
+python scripts/check_marketing_claims.py
+```
+
+Docker runtime smoke remains owner-gated. Without explicit approval, use the static
+Docker delivery gate only:
+
+```powershell
+python scripts/check_docker_delivery.py --out reports/readiness/docker_delivery.json
+```
 
 Useful lower-level commands:
 
