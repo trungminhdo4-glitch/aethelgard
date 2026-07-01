@@ -59,6 +59,8 @@ src/aethelgard/
   sbom.py                  # Offline CycloneDX-SBOM-Inventar + Metadata-Gap-Findings
   supplier_profile.py      # Supplier-Cascade-Profilvertrag + Validator
   delivery_profile.py      # Lokales Delivery-/White-Label-Profil, metadata-only, keine PII
+  errors.py                # Stabile lokale Error-Taxonomie + Exit-Code-Mapping
+  diagnostics.py           # Doctor, JSONL-Debug-Logs, redacted Support-Bundle, Privacy Guard
   ml_baselines/            # Low-Compute-ML-Baselines, lokal, deterministisch, review-only
     __init__.py
     features.py            # Metadata-only Feature JSONL, Text-Hash statt Snippets
@@ -337,6 +339,9 @@ from aethelgard.mvp1 import (
   `test_pilot_product_slice.py` pruefen Multi-Format-Ingest, stabile Evidence-IDs,
   SQLite-Migration/Versioning, reviewed Answer-Reuse, Missing-Evidence, Review Queue,
   Shareable-Output-Redaction und Workspace-Inspect/Purge-Dry-Run.
+- Diagnostics-/Support-Bundle-Tests: `test_diagnostics.py`, `test_support_bundle.py`
+  pruefen Doctor-Reports ohne Rohinhalte, Debug-JSONL-Split, stabile Error-Codes,
+  redacted ZIP-Inhalte und Privacy-Guard-Blockade fuer verbotene Marker.
 
 ## Bekannte Gotchas
 
@@ -407,7 +412,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Delivery Profile | OK: metadata-only `delivery-profile validate`, synthetisches Demo-Profil, keine PII/Secrets/private Pfade, keine Safety-Overrides | 2026-06-30 |
 | Pilot Product Slice | OK: `pilot-product`, `document-ingest`, `answer-vault`, `workspace inspect/purge`; SQLite Answer Vault, shareable/private Output-Split, Missing Evidence, Review Queue und HTML Preview; CLI-DB-Pfade projektgebunden, explizite Review-Disclaimer, keine Compliance-Garantie | 2026-07-01 |
 | Pilot Demo Marketing Pack | OK: statische Landingpage, Demo-Video-Script, Outreach-Pack, `docs/pilot_quickstart.md`, reproduzierbarer redacted `pilot-product` Demo-Run und `check_marketing_claims.py`; Docker-Runtime bleibt Owner-Gate | 2026-07-01 |
-| Tests | 341/342 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-01 |
+| Pilot Diagnostics Support | OK: `doctor`, `support-bundle --redacted`, `pilot-product --debug`, lokale JSONL-Logs, stabile Error-Taxonomie, Privacy-Guard und `docs/pilot_support.md`; keine Telemetrie, kein Cloud-Monitoring, keine Kundendokumente/DBs im Bundle | 2026-07-01 |
+| Tests | 347/348 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-01 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (30 Dateien) | 2026-07-01 |
@@ -416,7 +422,7 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
 | Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-07-01 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (37 Source-Dateien) | 2026-07-01 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (39 Source-Dateien) | 2026-07-01 |
 | Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)

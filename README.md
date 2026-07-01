@@ -34,6 +34,8 @@ human pre-review of security documentation through local evidence triage.
 - Metadata-only delivery-profile validator for local consultant/white-label handoff.
 - Dockerfile and Compose profile for local offline CLI delivery.
 - Static pilot landingpage, demo-video script, outreach copy, and marketing-claim gate.
+- Local doctor, structured debug logs, and redacted support-bundle workflow for
+  privacy-safe pilot troubleshooting.
 - Evaluation CLI with pilot-readiness thresholds.
 - Calibration reports with proxy quality indicators for synthetic fixture packs.
 - Optional metadata-only audit ledger for CLI runs.
@@ -178,6 +180,18 @@ The command inventories supported and unsupported files, marks images as
 `ocr_required`, imports reviewed reusable answers into the local SQLite answer vault,
 reuses only reviewed answer-vault entries as reviewed drafts, and routes uncertain or
 missing answers to human review. Shareable outputs avoid raw snippets and private paths.
+
+For local support and reproducible bug reports:
+
+```powershell
+python -m aethelgard.cli pilot-product --workspace examples/pilot --out reports/pilot-product-demo --client-id demo-client --case-id case001 --debug
+python -m aethelgard.cli doctor --workspace examples/pilot --out reports/doctor
+python -m aethelgard.cli support-bundle --workspace examples/pilot --out reports/support_bundle.zip --redacted
+```
+
+See `docs/pilot_support.md` for what can be shared after human review. Redacted support
+bundles must not contain customer documents, SQLite databases, private debug folders,
+private configuration, or unredacted logs.
 
 ## Pilot Demo Marketing Pack
 

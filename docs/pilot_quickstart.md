@@ -48,3 +48,18 @@ Vor einem öffentlichen Deploy:
 - Legal-/Privacy-Review durchführen
 - keine echten Kundendokumente in das Repo kopieren
 - keine Reports, Datenbanken oder private Outputs committen
+
+## Fehlerfall
+
+Bei lokalen Pilotproblemen zuerst den Support-Leitfaden nutzen:
+
+```text
+docs/pilot_support.md
+```
+
+Die Standardbefehle sind:
+
+```powershell
+python -m aethelgard.cli doctor --workspace examples/pilot --out reports/doctor
+python -m aethelgard.cli support-bundle --workspace examples/pilot --out reports/support_bundle.zip --redacted
+```

@@ -72,6 +72,7 @@ OPS_REQUIRED_DOCS: Final[tuple[Path, ...]] = (
     Path("docs") / "demo-script.md",
     Path("docs") / "pilot-call-agenda.md",
     Path("docs") / "pilot-outreach-readiness.md",
+    Path("docs") / "pilot_support.md",
     Path("docs") / "outreach-target-list-template.csv",
 )
 OPS_LEVEL: Final[str] = "ops"
@@ -294,6 +295,77 @@ def _build_checks(out_dir: Path) -> list[dict[str, object]]:
                 ("test_pilot_product_cli_builds_answer_vault_and_review_outputs",),
             ),
             "Integrated pilot-product slice regression test is present.",
+        )
+    )
+    checks.append(
+        _check(
+            "diagnostics_cli_present",
+            _path_contains(
+                PROJECT_ROOT / "src" / "aethelgard" / "cli.py",
+                (
+                    "doctor",
+                    "support-bundle",
+                    "--debug",
+                ),
+            ),
+            "CLI exposes doctor, support-bundle, and debug logging switches.",
+        )
+    )
+    checks.append(
+        _check(
+            "diagnostics_error_taxonomy_present",
+            _path_contains(
+                PROJECT_ROOT / "src" / "aethelgard" / "errors.py",
+                (
+                    "DOC_PARSE_FAILED",
+                    "PRIVACY_GUARD_BLOCKED",
+                    "INTERNAL_ERROR",
+                    "ERROR_EXIT_CODES",
+                ),
+            ),
+            "Stable diagnostics error taxonomy and exit-code mapping are present.",
+        )
+    )
+    checks.append(
+        _check(
+            "support_bundle_redaction_tests_present",
+            _test_file_mentions(
+                Path("tests") / "test_support_bundle.py",
+                (
+                    "test_support_bundle_zip_excludes_private_outputs",
+                    "test_support_bundle_privacy_guard_blocks_forbidden_summary",
+                ),
+            ),
+            "Support bundle privacy regression tests are present.",
+        )
+    )
+    checks.append(
+        _check(
+            "doctor_debug_logging_tests_present",
+            _test_file_mentions(
+                Path("tests") / "test_diagnostics.py",
+                (
+                    "test_doctor_creates_json_and_markdown_without_raw_content",
+                    "run_debug.jsonl",
+                    "run_summary.jsonl",
+                ),
+            ),
+            "Doctor and debug logging regression tests are present.",
+        )
+    )
+    checks.append(
+        _check(
+            "pilot_support_docs_present",
+            _path_contains(
+                PROJECT_ROOT / "docs" / "pilot_support.md",
+                (
+                    "doctor",
+                    "support-bundle",
+                    "--debug",
+                    "Human Review",
+                ),
+            ),
+            "Pilot support documentation explains doctor, bundles, debug, and review gates.",
         )
     )
     checks.append(

@@ -159,3 +159,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Statische Landingpage, Demo-Video-Script, Outreach-Pack, Pilot-Quickstart und Marketing-Claim-Gate fuer den redacted Pilot-Demo-Flow |
 | Commit | - |
 | Ergebnis | OK: Start-HEAD `20fe2fd72233b723cedfd74dc29b06cbfe4089b3`; umgesetzt ohne neue Dependencies, SaaS, externe APIs, Docker-Runtime, echte Kundendaten, Secrets oder private Outputs; `pytest -q` (341 passed, 1 skipped, 17 subtests), `ruff check .`, `mypy src`, Fixture-Safety, Marketing-Claim-Gate, Docker-Static-Gate, Pilot-Readiness `PILOT_PUBLIC_DATA_READY` und redacted Product-Smoke `PILOT_PRODUCT_SLICE_READY` gruen; direkter `python -m aethelgard.cli ...` Systemlauf scheiterte wegen nicht installiertem Package und wurde mit `.venv-fresh` erfolgreich wiederholt |
+
+### 2026-07-01 23:45 - Local diagnostics support bundle
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Lokale Diagnose-/Support-Schicht fuer Pilotkunden: Doctor, redacted Support Bundle, Debug-JSONL, Error-Taxonomie, Privacy Guard und Support-Doku |
+| Commit | - |
+| Ergebnis | OK: Start-HEAD `ea6c8cce7873c9f246957a91234bd696b936965a`; umgesetzt ohne neue Dependencies, Telemetrie, Cloud-Monitoring, externe Error-Tracker, Docker-Runtime, echte Kundendaten, Secrets oder private Bundle-Inhalte; `py_compile`, fokussierte Tests (12 passed), `pytest -q` (347 passed, 1 skipped, 17 subtests), `ruff check .`, `mypy src`, Fixture-Safety, Marketing-Claim-Gate, Docker-Static-Gate, Pilot-Readiness `PILOT_PUBLIC_DATA_READY`, `pilot-product --debug`, `doctor` und `support-bundle --redacted` gruen; kein Push, Merge oder Rebase |

@@ -6,6 +6,7 @@ import argparse
 import csv
 import json
 import sys
+import traceback
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final, cast
@@ -27,7 +28,18 @@ from aethelgard.control_catalog import (
     load_control_catalog_bundle,
 )
 from aethelgard.delivery_profile import DeliveryProfileError, validate_delivery_profile
+from aethelgard.diagnostics import (
+    DiagnosticLogWriter,
+    build_support_bundle,
+    diagnostic_error_from_exception,
+    run_doctor,
+)
 from aethelgard.document_ingest import DocumentIngestError, run_document_ingest
+from aethelgard.errors import (
+    AethelgardDiagnosticError,
+    ErrorCode,
+    exit_code_for_error,
+)
 from aethelgard.evidence_bridge import (
     EvidenceBridgeError,
     bridge_reviewed_report_to_evidence_store,
@@ -186,6 +198,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Omit redacted local excerpts from the private evidence map.",
     )
+    document_ingest_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Write local-private debug JSONL and redacted run summary JSONL.",
+    )
 
     pilot_product_parser = subparsers.add_parser(
         "pilot-product",
@@ -225,6 +242,46 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Optional SQLite DB path. Defaults to local_private/aethelgard.sqlite.",
+    )
+    pilot_product_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Write additional local-private diagnostics while keeping shareable logs redacted.",
+    )
+
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Run passive local diagnostics without reading raw customer document content.",
+    )
+    doctor_parser.add_argument(
+        "--workspace",
+        required=True,
+        type=Path,
+        help="Pilot workspace to inspect metadata-only.",
+    )
+    doctor_parser.add_argument("--out", required=True, type=Path, help="Output directory.")
+
+    support_bundle_parser = subparsers.add_parser(
+        "support-bundle",
+        help="Create a redacted local support bundle for pilot troubleshooting.",
+    )
+    support_bundle_parser.add_argument(
+        "--workspace",
+        required=True,
+        type=Path,
+        help="Pilot workspace or generated pilot-product output directory.",
+    )
+    support_bundle_parser.add_argument("--out", required=True, type=Path, help="Output ZIP path.")
+    support_bundle_parser.add_argument(
+        "--redacted",
+        action="store_true",
+        default=True,
+        help="Create only the redacted support bundle. This is the default.",
+    )
+    support_bundle_parser.add_argument(
+        "--include-private",
+        action="store_true",
+        help="Blocked: private support bundles are intentionally not implemented.",
     )
 
     review_parser = subparsers.add_parser(
@@ -832,6 +889,8 @@ def main(argv: list[str] | None = None) -> int:
         "public-data",
         "supplier-profile",
         "delivery-profile",
+        "doctor",
+        "support-bundle",
         "workspace",
         "ml",
     }:
@@ -853,6 +912,8 @@ def _run_local_workflow(args: argparse.Namespace) -> int:
         "public-data": _run_public_data,
         "supplier-profile": _run_supplier_profile,
         "delivery-profile": _run_delivery_profile,
+        "doctor": _run_doctor,
+        "support-bundle": _run_support_bundle,
         "workspace": _run_workspace,
         "ml": _run_ml,
     }
@@ -1086,22 +1147,52 @@ def _write_json(path: Path, payload: Mapping[str, object]) -> None:
 
 
 def _run_document_ingest(args: argparse.Namespace) -> int:
+    logger: DiagnosticLogWriter | None = None
     try:
         output_path = _resolve_output_path(cast(Path, args.out))
+        if bool(args.debug):
+            logger = DiagnosticLogWriter(output_path, command="document-ingest", debug=True)
+            logger.write_event(
+                phase="document_ingest",
+                event="started",
+                message="Document ingest started.",
+            )
         run_document_ingest(
             cast(Path, args.input),
             output_path,
             include_local_excerpts=not bool(args.no_local_excerpts),
         )
+        if logger is not None:
+            logger.write_event(
+                phase="document_ingest",
+                event="completed",
+                message="Document ingest completed.",
+            )
     except (DocumentIngestError, ReviewApplyError) as exc:
+        if logger is not None:
+            logger.write_error(
+                diagnostic_error_from_exception(exc, phase="document_ingest"),
+                stacktrace=traceback.format_exc(),
+            )
         print("document-ingest failed: %s" % exc, file=sys.stderr)
         return PILOT_PRODUCT_ERROR_EXIT_CODE
     return 0
 
 
 def _run_pilot_product(args: argparse.Namespace) -> int:
+    logger: DiagnosticLogWriter | None = None
     try:
         output_path = _resolve_output_path(cast(Path, args.out))
+        logger = DiagnosticLogWriter(
+            output_path,
+            command="pilot-product",
+            debug=bool(args.debug),
+        )
+        logger.write_event(
+            phase="pilot_product",
+            event="started",
+            message="Pilot product run started.",
+        )
         db_path = cast(Path | None, args.db)
         resolved_db_path = _resolve_output_path(db_path, "--db") if db_path is not None else None
         result = run_pilot_product_slice(
@@ -1114,6 +1205,11 @@ def _run_pilot_product(args: argparse.Namespace) -> int:
             db_path=resolved_db_path,
         )
         _write_json(output_path / "pilot_product_summary.json", result)
+        logger.write_event(
+            phase="pilot_product",
+            event="completed",
+            message="Pilot product run completed.",
+        )
     except (
         AnswerVaultError,
         DocumentIngestError,
@@ -1121,8 +1217,57 @@ def _run_pilot_product(args: argparse.Namespace) -> int:
         QuestionnaireError,
         ReviewApplyError,
     ) as exc:
+        diagnostic_error = diagnostic_error_from_exception(exc, phase="pilot_product")
+        if logger is not None:
+            logger.write_error(diagnostic_error, stacktrace=traceback.format_exc())
         print("pilot-product failed: %s" % exc, file=sys.stderr)
+        print(
+            "Run failed. Create a redacted support bundle with: "
+            "python -m aethelgard.cli support-bundle --workspace <run-output> "
+            "--out reports/support_bundle.zip --redacted",
+            file=sys.stderr,
+        )
         return PILOT_PRODUCT_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_doctor(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        report = run_doctor(cast(Path, args.workspace), output_path)
+    except AethelgardDiagnosticError as exc:
+        print("doctor failed: %s" % exc.safe_message, file=sys.stderr)
+        return exit_code_for_error(exc.error_code)
+    status = str(report["status"])
+    print("Doctor status: %s" % status)
+    return 0 if status != "FAIL" else exit_code_for_error(ErrorCode.READINESS_FAILED)
+
+
+def _run_support_bundle(args: argparse.Namespace) -> int:
+    try:
+        if bool(args.include_private):
+            raise AethelgardDiagnosticError(
+                error_code=ErrorCode.PRIVACY_GUARD_BLOCKED,
+                severity="critical",
+                phase="support_bundle",
+                safe_message="Private support bundles are not implemented.",
+                technical_detail="--include-private was requested",
+                remediation_hint=(
+                    "Run again with redacted outputs only or inspect local_private manually."
+                ),
+                safe_to_share=True,
+            )
+        output_path = _resolve_output_path(cast(Path, args.out))
+        result = build_support_bundle(
+            cast(Path, args.workspace),
+            output_path,
+            redacted=bool(args.redacted),
+        )
+    except AethelgardDiagnosticError as exc:
+        print("support-bundle failed: %s" % exc.safe_message, file=sys.stderr)
+        print("remediation: %s" % exc.remediation_hint, file=sys.stderr)
+        return exit_code_for_error(exc.error_code)
+    print("Support bundle: %s" % result["bundle"])
     return 0
 
 
