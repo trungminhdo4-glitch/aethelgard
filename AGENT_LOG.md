@@ -135,3 +135,19 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Docker-ML-Smoke, Release-/Readiness-Gates nach ML-Slice, Consultant-Laptop-Hardening, Delivery-Profil und privacy-safe Learning-Export |
 | Commit | - |
 | Ergebnis | OK: Start-HEAD `bf86c70fe00dd8b225d13276e347901b75c8e7a6`; umgesetzt ohne neue Dependencies mit `docker_ml_smoke.ps1`, `delivery-profile validate`, redigiertem `ml export-learning-feedback`, deterministischem ML-Metadata-Timestamp und token-freiem fallback Doc-Type-Model-Output; `pytest` (326 passed, 1 skipped, 17 subtests), `compileall`, `ruff`, `mypy src`, Fixture-Safety, Docker-Static-Gate, `docker_smoke`, `docker_ml_smoke`, `consultant_laptop_smoke` und Pilot-Readiness `PILOT_PUBLIC_DATA_READY` gruen; keine echten Kundendaten, Secrets, `.env`, LLMs, Cloud, Push, Merge oder Rebase |
+
+### 2026-07-01 20:12 - Pilot product slice and answer vault
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Integrierter lokaler Product-Slice Dokumente -> Evidence -> SQLite Answer Vault -> Questionnaire Draft -> Human Review Queue -> Missing Evidence/HTML Preview |
+| Commit | - |
+| Ergebnis | OK: Start-HEAD `c92cc79b2fcd34592ce7b7dc6c86cea1fe41adce`; umgesetzt ohne neue Dependencies mit `document-ingest`, `answer-vault`, `pilot-product`, `workspace inspect/purge`, synthetischem Answer-Library-Sample, Readiness-Gates und Tests; `py_compile`, fokussierte Tests (12 passed), `pytest` (335 passed, 1 skipped, 17 subtests), `ruff check .`, `mypy src`, Fixture-Safety und Pilot-Readiness `PILOT_PUBLIC_DATA_READY` gruen; Produkt-Smoke `PILOT_PRODUCT_SLICE_READY`; Docker-Runtime nicht ausgefuehrt (Owner-Gate); keine echten Kundendaten, Secrets, `.env`, LLMs, Cloud, Push, Merge oder Rebase |
+
+### 2026-07-01 21:20 - Pilot product slice stabilization
+| Feld | Wert |
+|---|---|
+| Agent | Codex |
+| Task | Diff-Review, minimale Stabilisierung und Commit-Readiness fuer den vorhandenen Product-Slice |
+| Commit | - |
+| Ergebnis | OK: Start-HEAD `c92cc79b2fcd34592ce7b7dc6c86cea1fe41adce`; fixte projektgebundene `answer-vault --db`-Pfade, Custom-DB-Readiness und explizite HTML-Disclaimer (`local triage`, `human review required`, `no compliance guarantee`); `py_compile`, fokussierte Product-Slice-Tests (11 passed), `pytest -q` (337 passed, 1 skipped), `ruff check .`, `mypy src`, Fixture-Safety, Pilot-Readiness und Product-Smoke `PILOT_PRODUCT_SLICE_READY` gruen; Output-Validierung bestaetigt CSV/JSON/SQLite, stabile Evidence-IDs und keine Shareable-Leakage-Marker; kein Docker, Push, Merge, Rebase, `.env`, Secrets, echte Kundendaten, LLMs, Cloud oder Netzwerk |

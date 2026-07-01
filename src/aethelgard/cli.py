@@ -11,6 +11,15 @@ from pathlib import Path
 from typing import Any, Final, cast
 
 from aethelgard import review as review_module
+from aethelgard.answer_vault import (
+    ANSWER_LIBRARY_EXPORT_NAME,
+    AnswerVaultError,
+    export_answer_library,
+    import_answer_library_json,
+    import_reviewed_report_answers,
+    init_answer_vault,
+    list_answer_library,
+)
 from aethelgard.audit import append_audit_entry, build_audit_entry
 from aethelgard.control_catalog import (
     ControlCatalogError,
@@ -18,6 +27,7 @@ from aethelgard.control_catalog import (
     load_control_catalog_bundle,
 )
 from aethelgard.delivery_profile import DeliveryProfileError, validate_delivery_profile
+from aethelgard.document_ingest import DocumentIngestError, run_document_ingest
 from aethelgard.evidence_bridge import (
     EvidenceBridgeError,
     bridge_reviewed_report_to_evidence_store,
@@ -43,6 +53,14 @@ from aethelgard.ml_baselines.model_registry import write_json as write_ml_json
 from aethelgard.ml_baselines.severity import SeverityError, rank_findings
 from aethelgard.ml_baselines.simhash import SimHashError, detect_near_duplicates
 from aethelgard.ml_baselines.weak_labels import write_weak_labels_jsonl
+from aethelgard.pilot_product import (
+    DEFAULT_CASE_ID,
+    DEFAULT_CLIENT_ID,
+    PilotProductError,
+    inspect_workspace,
+    purge_workspace,
+    run_pilot_product_slice,
+)
 from aethelgard.public_data import PublicDataError, validate_public_data_manifest
 from aethelgard.questionnaire import QUESTIONNAIRE_JSON_NAME, QuestionnaireError, run_questionnaire
 from aethelgard.redaction_preflight import (
@@ -71,6 +89,7 @@ REVIEW_APPLY_ERROR_EXIT_CODE: Final[int] = 4
 C_SCRM_ERROR_EXIT_CODE: Final[int] = 5
 ML_ERROR_EXIT_CODE: Final[int] = 6
 DELIVERY_PROFILE_ERROR_EXIT_CODE: Final[int] = 7
+PILOT_PRODUCT_ERROR_EXIT_CODE: Final[int] = 8
 DEMO_PILOT_SUMMARY_NAME: Final[str] = "demo_pilot_summary.json"
 DEMO_REVIEWED_AT: Final[str] = "2026-06-30T00:00:00+00:00"
 DEMO_ACCEPTABLE_CATEGORIES: Final[frozenset[str]] = frozenset(
@@ -151,6 +170,63 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output directory for the full local pilot flow.",
     )
 
+    document_ingest_parser = subparsers.add_parser(
+        "document-ingest",
+        help="Inventory local documents and build deterministic evidence-map metadata.",
+    )
+    document_ingest_parser.add_argument(
+        "--input",
+        required=True,
+        type=Path,
+        help="Input file or directory.",
+    )
+    document_ingest_parser.add_argument("--out", required=True, type=Path, help="Output directory.")
+    document_ingest_parser.add_argument(
+        "--no-local-excerpts",
+        action="store_true",
+        help="Omit redacted local excerpts from the private evidence map.",
+    )
+
+    pilot_product_parser = subparsers.add_parser(
+        "pilot-product",
+        help="Run the integrated local documents -> evidence -> answer-vault -> draft flow.",
+    )
+    pilot_product_parser.add_argument(
+        "--workspace",
+        required=True,
+        type=Path,
+        help="Pilot workspace with documents/ and questionnaire_demo.csv.",
+    )
+    pilot_product_parser.add_argument("--out", required=True, type=Path, help="Output directory.")
+    pilot_product_parser.add_argument(
+        "--client-id",
+        default=DEFAULT_CLIENT_ID,
+        help="Local client identifier stored in the SQLite answer vault.",
+    )
+    pilot_product_parser.add_argument(
+        "--case-id",
+        default=DEFAULT_CASE_ID,
+        help="Questionnaire case identifier.",
+    )
+    pilot_product_parser.add_argument(
+        "--docs",
+        type=Path,
+        default=None,
+        help="Optional document directory override.",
+    )
+    pilot_product_parser.add_argument(
+        "--questions",
+        type=Path,
+        default=None,
+        help="Optional questionnaire CSV override.",
+    )
+    pilot_product_parser.add_argument(
+        "--db",
+        type=Path,
+        default=None,
+        help="Optional SQLite DB path. Defaults to local_private/aethelgard.sqlite.",
+    )
+
     review_parser = subparsers.add_parser(
         "review-apply",
         help="Apply human review CSV data to an evidence report.",
@@ -192,6 +268,104 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Control catalog directory. Defaults to data/control_catalogs.",
+    )
+
+    answer_vault_parser = subparsers.add_parser(
+        "answer-vault",
+        help="Manage the local SQLite client profile / answer vault.",
+    )
+    answer_vault_subparsers = answer_vault_parser.add_subparsers(
+        dest="answer_vault_command",
+        required=True,
+    )
+    answer_vault_init_parser = answer_vault_subparsers.add_parser(
+        "init",
+        help="Initialize an idempotent SQLite answer vault.",
+    )
+    answer_vault_init_parser.add_argument("--db", required=True, type=Path, help="SQLite DB path.")
+    answer_vault_init_parser.add_argument("--client-id", required=True, help="Client identifier.")
+
+    answer_vault_import_reviewed_parser = answer_vault_subparsers.add_parser(
+        "import-reviewed",
+        help="Import reviewed questionnaire answers from reviewed_report.json.",
+    )
+    answer_vault_import_reviewed_parser.add_argument(
+        "--db",
+        required=True,
+        type=Path,
+        help="SQLite DB path.",
+    )
+    answer_vault_import_reviewed_parser.add_argument(
+        "--reviewed-report",
+        required=True,
+        type=Path,
+        help="reviewed_report.json from review-apply.",
+    )
+    answer_vault_import_reviewed_parser.add_argument(
+        "--client-id",
+        required=True,
+        help="Client identifier.",
+    )
+    answer_vault_import_reviewed_parser.add_argument(
+        "--case-id",
+        default="",
+        help="Optional source case identifier.",
+    )
+
+    answer_vault_import_library_parser = answer_vault_subparsers.add_parser(
+        "import-library",
+        help="Import a local reviewed answer_library JSON fixture.",
+    )
+    answer_vault_import_library_parser.add_argument(
+        "--db",
+        required=True,
+        type=Path,
+        help="SQLite DB path.",
+    )
+    answer_vault_import_library_parser.add_argument(
+        "--answers",
+        required=True,
+        type=Path,
+        help="Answer library JSON.",
+    )
+    answer_vault_import_library_parser.add_argument(
+        "--client-id",
+        required=True,
+        help="Client identifier.",
+    )
+
+    answer_vault_export_parser = answer_vault_subparsers.add_parser(
+        "export",
+        help="Export the current answer library as JSON.",
+    )
+    answer_vault_export_parser.add_argument(
+        "--db",
+        required=True,
+        type=Path,
+        help="SQLite DB path.",
+    )
+    answer_vault_export_parser.add_argument(
+        "--out",
+        required=False,
+        type=Path,
+        default=Path("reports") / ANSWER_LIBRARY_EXPORT_NAME,
+        help="Output JSON path.",
+    )
+    answer_vault_export_parser.add_argument(
+        "--client-id",
+        default=None,
+        help="Optional client filter.",
+    )
+
+    answer_vault_list_parser = answer_vault_subparsers.add_parser(
+        "list",
+        help="Print answer library entries as JSON.",
+    )
+    answer_vault_list_parser.add_argument("--db", required=True, type=Path, help="SQLite DB path.")
+    answer_vault_list_parser.add_argument(
+        "--client-id",
+        default=None,
+        help="Optional client filter.",
     )
 
     supplier_parser = subparsers.add_parser(
@@ -390,6 +564,42 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         type=Path,
         help="Output normalized delivery profile JSON file.",
+    )
+
+    workspace_parser = subparsers.add_parser(
+        "workspace",
+        help="Inspect or purge local generated pilot workspaces.",
+    )
+    workspace_subparsers = workspace_parser.add_subparsers(dest="workspace_command", required=True)
+    workspace_inspect_parser = workspace_subparsers.add_parser(
+        "inspect",
+        help="Inspect generated product-slice workspace metadata.",
+    )
+    workspace_inspect_parser.add_argument(
+        "--workspace",
+        required=True,
+        type=Path,
+        help="Generated workspace/output directory.",
+    )
+    workspace_purge_parser = workspace_subparsers.add_parser(
+        "purge",
+        help="Delete known generated product-slice outputs when explicitly confirmed.",
+    )
+    workspace_purge_parser.add_argument(
+        "--workspace",
+        required=True,
+        type=Path,
+        help="Generated workspace/output directory.",
+    )
+    workspace_purge_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List purge targets without deleting them.",
+    )
+    workspace_purge_parser.add_argument(
+        "--confirm",
+        action="store_true",
+        help="Actually delete known generated outputs in the workspace.",
     )
 
     ml_parser = subparsers.add_parser(
@@ -604,12 +814,17 @@ def main(argv: list[str] | None = None) -> int:
         exit_code = _run_pilot(args)
     elif args.command == "demo-pilot":
         exit_code = _run_demo_pilot(args)
+    elif args.command == "document-ingest":
+        exit_code = _run_document_ingest(args)
+    elif args.command == "pilot-product":
+        exit_code = _run_pilot_product(args)
     elif args.command == "review-apply":
         exit_code = _run_review_apply(args)
     elif args.command == "validate-controls":
         exit_code = _run_validate_controls(args)
     elif args.command in {
         "questionnaire",
+        "answer-vault",
         "supplier-risk",
         "evidence",
         "trust-bundle",
@@ -617,6 +832,7 @@ def main(argv: list[str] | None = None) -> int:
         "public-data",
         "supplier-profile",
         "delivery-profile",
+        "workspace",
         "ml",
     }:
         exit_code = _run_local_workflow(args)
@@ -629,6 +845,7 @@ def main(argv: list[str] | None = None) -> int:
 def _run_local_workflow(args: argparse.Namespace) -> int:
     handlers: Mapping[str, Callable[[argparse.Namespace], int]] = {
         "questionnaire": _run_questionnaire,
+        "answer-vault": _run_answer_vault,
         "supplier-risk": _run_supplier_risk,
         "evidence": _run_evidence,
         "trust-bundle": _run_trust_bundle,
@@ -636,6 +853,7 @@ def _run_local_workflow(args: argparse.Namespace) -> int:
         "public-data": _run_public_data,
         "supplier-profile": _run_supplier_profile,
         "delivery-profile": _run_delivery_profile,
+        "workspace": _run_workspace,
         "ml": _run_ml,
     }
     handler = handlers.get(str(args.command))
@@ -867,6 +1085,47 @@ def _write_json(path: Path, payload: Mapping[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def _run_document_ingest(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        run_document_ingest(
+            cast(Path, args.input),
+            output_path,
+            include_local_excerpts=not bool(args.no_local_excerpts),
+        )
+    except (DocumentIngestError, ReviewApplyError) as exc:
+        print("document-ingest failed: %s" % exc, file=sys.stderr)
+        return PILOT_PRODUCT_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_pilot_product(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        db_path = cast(Path | None, args.db)
+        resolved_db_path = _resolve_output_path(db_path, "--db") if db_path is not None else None
+        result = run_pilot_product_slice(
+            cast(Path, args.workspace),
+            output_path,
+            client_id=str(args.client_id),
+            case_id=str(args.case_id),
+            docs_path=cast(Path | None, args.docs),
+            questionnaire_path=cast(Path | None, args.questions),
+            db_path=resolved_db_path,
+        )
+        _write_json(output_path / "pilot_product_summary.json", result)
+    except (
+        AnswerVaultError,
+        DocumentIngestError,
+        PilotProductError,
+        QuestionnaireError,
+        ReviewApplyError,
+    ) as exc:
+        print("pilot-product failed: %s" % exc, file=sys.stderr)
+        return PILOT_PRODUCT_ERROR_EXIT_CODE
+    return 0
+
+
 def _run_review_apply(args: argparse.Namespace) -> int:
     try:
         output_path = _resolve_output_path(cast(Path, args.out))
@@ -910,6 +1169,46 @@ def _run_questionnaire(args: argparse.Namespace) -> int:
     except (ControlCatalogError, EvidenceStoreError, QuestionnaireError, ReviewApplyError) as exc:
         print("questionnaire failed: %s" % exc, file=sys.stderr)
         return C_SCRM_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_answer_vault(args: argparse.Namespace) -> int:
+    try:
+        command = str(args.answer_vault_command)
+        db_path = _resolve_output_path(cast(Path, args.db), "--db")
+        if command == "init":
+            init_answer_vault(db_path, client_id=str(args.client_id))
+        elif command == "import-reviewed":
+            import_reviewed_report_answers(
+                db_path,
+                cast(Path, args.reviewed_report),
+                client_id=str(args.client_id),
+                source_case_id=str(args.case_id),
+            )
+        elif command == "import-library":
+            import_answer_library_json(
+                db_path,
+                cast(Path, args.answers),
+                client_id=str(args.client_id),
+            )
+        elif command == "export":
+            output_path = _resolve_output_path(cast(Path, args.out))
+            export_answer_library(
+                db_path,
+                output_path,
+                client_id=cast(str | None, args.client_id),
+            )
+        elif command == "list":
+            answers = list_answer_library(
+                db_path,
+                client_id=cast(str | None, args.client_id),
+            )
+            print(json.dumps({"answers": answers}, indent=2, sort_keys=True))
+        else:
+            raise AnswerVaultError("unknown answer-vault command: %s" % command)
+    except (AnswerVaultError, ReviewApplyError) as exc:
+        print("answer-vault failed: %s" % exc, file=sys.stderr)
+        return PILOT_PRODUCT_ERROR_EXIT_CODE
     return 0
 
 
@@ -1033,6 +1332,27 @@ def _run_delivery_profile(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return DELIVERY_PROFILE_ERROR_EXIT_CODE
+    return 0
+
+
+def _run_workspace(args: argparse.Namespace) -> int:
+    try:
+        command = str(args.workspace_command)
+        if command == "inspect":
+            report = inspect_workspace(cast(Path, args.workspace))
+        elif command == "purge":
+            dry_run = bool(args.dry_run) or not bool(args.confirm)
+            report = purge_workspace(
+                cast(Path, args.workspace),
+                dry_run=dry_run,
+                confirm=bool(args.confirm),
+            )
+        else:
+            raise PilotProductError("unknown workspace command: %s" % command)
+        print(json.dumps(report, indent=2, sort_keys=True))
+    except PilotProductError as exc:
+        print("workspace %s failed: %s" % (args.workspace_command, exc), file=sys.stderr)
+        return PILOT_PRODUCT_ERROR_EXIT_CODE
     return 0
 
 
@@ -1175,13 +1495,13 @@ def _has_active_review_input(args: argparse.Namespace) -> bool:
     )
 
 
-def _resolve_output_path(path: Path) -> Path:
+def _resolve_output_path(path: Path, label: str = "--out") -> Path:
     resolved = Path(path).resolve()
     safe_base = Path.cwd().resolve()
     try:
         resolved.relative_to(safe_base)
     except ValueError as exc:
-        raise ReviewApplyError("--out must stay inside the current project folder") from exc
+        raise ReviewApplyError("%s must stay inside the current project folder" % label) from exc
     return resolved
 
 

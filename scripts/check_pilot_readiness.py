@@ -266,6 +266,55 @@ def _build_checks(out_dir: Path) -> list[dict[str, object]]:
     )
     checks.append(
         _check(
+            "pilot_product_sample_pack_present",
+            _pilot_product_sample_pack_present(),
+            "Pilot product slice sample pack includes documents, questionnaire, and answers.",
+        )
+    )
+    checks.append(
+        _check(
+            "pilot_product_cli_present",
+            _path_contains(
+                PROJECT_ROOT / "src" / "aethelgard" / "cli.py",
+                (
+                    "pilot-product",
+                    "answer-vault",
+                    "document-ingest",
+                    "workspace",
+                ),
+            ),
+            "CLI exposes product-slice, answer-vault, document-ingest, and workspace commands.",
+        )
+    )
+    checks.append(
+        _check(
+            "pilot_product_tests_present",
+            _test_file_mentions(
+                Path("tests") / "test_pilot_product_slice.py",
+                ("test_pilot_product_cli_builds_answer_vault_and_review_outputs",),
+            ),
+            "Integrated pilot-product slice regression test is present.",
+        )
+    )
+    checks.append(
+        _check(
+            "answer_vault_tests_present",
+            _test_file_mentions(
+                Path("tests") / "test_answer_vault.py",
+                ("test_answer_vault_init_is_idempotent_and_seeds_schema",),
+            ),
+            "SQLite answer-vault regression tests are present.",
+        )
+    )
+    checks.append(
+        _check(
+            "generated_sqlite_outputs_ignored",
+            _gitignore_mentions_generated_private_outputs(),
+            ".gitignore excludes generated SQLite and private/shareable output folders.",
+        )
+    )
+    checks.append(
+        _check(
             "public_data_manifest_present",
             (PROJECT_ROOT / "examples" / "pilot" / "public_data_manifest.json").is_file(),
             "Public-data decision manifest is present and offline.",
@@ -525,6 +574,30 @@ def _pilot_demo_examples_present() -> bool:
         base / "sbom" / "cyclonedx_demo.json",
     )
     return all(path.is_file() for path in required)
+
+
+def _pilot_product_sample_pack_present() -> bool:
+    base = PROJECT_ROOT / "examples" / "pilot"
+    required = (
+        base / "documents" / "supplier_security_annex.md",
+        base / "documents" / "incident_response_playbook.md",
+        base / "documents" / "continuity_and_access.md",
+        base / "questionnaire_demo.csv",
+        base / "answer_library_demo.json",
+    )
+    return all(path.is_file() for path in required)
+
+
+def _gitignore_mentions_generated_private_outputs() -> bool:
+    return _path_contains(
+        PROJECT_ROOT / ".gitignore",
+        (
+            "*.sqlite",
+            "*.sqlite3",
+            "local_private/",
+            "shareable_redacted/",
+        ),
+    )
 
 
 def _public_data_validation_is_ready() -> bool:

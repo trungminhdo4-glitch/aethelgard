@@ -19,6 +19,8 @@ human pre-review of security documentation through local evidence triage.
 - Demo CLI for JSON/Markdown evidence reports.
 - Pilot-run CLI with masked preflight reports and human-review CSV export.
 - Review-apply CLI for reviewed JSON/Markdown reports and review summaries.
+- Integrated pilot-product CLI for document ingest, SQLite answer vault reuse,
+  questionnaire draft, review queue, missing-evidence report, and HTML preview.
 - Metadata-only evidence store, questionnaire, supplier-risk, and trust-bundle preview flow.
 - Offline CycloneDX SBOM inventory and metadata-gap findings with no CVE/API/network lookup.
 - Offline public-data validation for a minimized CISA KEV sample and a minimized
@@ -147,6 +149,43 @@ still need evidence, which SBOM metadata gaps exist, and what goes into the fina
 bundle preview. It does not certify compliance, replace legal review, make audit claims,
 or process customer data. Inputs in `examples/pilot` are synthetic. Real public
 reference fixtures are validated separately under `examples/public`.
+
+## Pilot Product Slice
+
+This is the first product-shaped local workflow:
+
+```powershell
+python -m aethelgard.cli pilot-product --workspace examples/pilot --out reports/pilot-product-demo --client-id demo-client --case-id case001
+```
+
+Outputs are split deliberately:
+
+- `reports/pilot-product-demo/local_private/document_inventory.json`
+- `reports/pilot-product-demo/local_private/evidence_map.json`
+- `reports/pilot-product-demo/local_private/aethelgard.sqlite`
+- `reports/pilot-product-demo/shareable_redacted/document_summaries.md`
+- `reports/pilot-product-demo/shareable_redacted/questionnaire_draft.csv`
+- `reports/pilot-product-demo/shareable_redacted/case_review_queue.csv`
+- `reports/pilot-product-demo/shareable_redacted/review_items.csv`
+- `reports/pilot-product-demo/shareable_redacted/missing_evidence.csv`
+- `reports/pilot-product-demo/shareable_redacted/coverage_report.md`
+- `reports/pilot-product-demo/shareable_redacted/coverage_report.html`
+- `reports/pilot-product-demo/shareable_redacted/pilot_readiness_report.json`
+
+The command inventories supported and unsupported files, marks images as
+`ocr_required`, imports reviewed reusable answers into the local SQLite answer vault,
+reuses only reviewed answer-vault entries as reviewed drafts, and routes uncertain or
+missing answers to human review. Shareable outputs avoid raw snippets and private paths.
+
+Useful lower-level commands:
+
+```powershell
+python -m aethelgard.cli document-ingest --input examples/pilot/documents --out reports/document-ingest-demo
+python -m aethelgard.cli answer-vault init --db reports/pilot-product-demo/local_private/aethelgard.sqlite --client-id demo-client
+python -m aethelgard.cli answer-vault export --db reports/pilot-product-demo/local_private/aethelgard.sqlite --out reports/pilot-product-demo/local_private/answer_library.json
+python -m aethelgard.cli workspace inspect --workspace reports/pilot-product-demo
+python -m aethelgard.cli workspace purge --workspace reports/pilot-product-demo --dry-run
+```
 
 ## Local C-SCRM Flow
 

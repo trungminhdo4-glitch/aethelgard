@@ -33,6 +33,11 @@ def test_pilot_readiness_check_writes_reports(tmp_path: Path) -> None:
     assert "docker_ml_smoke_script_present" in check_ids
     assert "readme_docker_ml_smoke" in check_ids
     assert "pilot_full_local_flow_test_present" in check_ids
+    assert "pilot_product_sample_pack_present" in check_ids
+    assert "pilot_product_cli_present" in check_ids
+    assert "pilot_product_tests_present" in check_ids
+    assert "answer_vault_tests_present" in check_ids
+    assert "generated_sqlite_outputs_ignored" in check_ids
 
 
 def _write_docker_runtime_proof(out_dir: Path) -> None:

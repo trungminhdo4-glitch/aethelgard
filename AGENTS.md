@@ -51,6 +51,9 @@ src/aethelgard/
   evidence_store.py        # Metadata-only Evidence Store, SHA-256, Secret-Path-Guards
   evidence_bridge.py       # Reviewed Findings -> Evidence Store Bridge
   questionnaire.py         # CSV-Frageimport, Frage->Controls, Evidence-basierte Drafts
+  document_ingest.py       # Multi-Format Document Inventory, DOCX/CSV/JSON, OCR-needed Status
+  answer_vault.py          # Lokaler SQLite Client Profile / Answer Vault + Draft-Reuse
+  pilot_product.py         # Integrierter Pilot Product Slice + Shareable/Private Output-Split
   supplier_risk.py         # Deterministischer Supplier-Risk-Score + JSON/MD-Report
   trust_bundle.py          # Metadata-only Trust-Bundle-Preview-Export
   sbom.py                  # Offline CycloneDX-SBOM-Inventar + Metadata-Gap-Findings
@@ -142,6 +145,9 @@ tests/mvp1/
 | `evidence_store.py` | Metadata-only Evidence Records, Hashes, Control-Refs | Rohdaten/Secrets in Reports ausgeben |
 | `evidence_bridge.py` | Reviewte Findings als Evidence-Metadaten exportieren | Rohzitate, private Pfade, nicht-akzeptierte Findings uebernehmen |
 | `questionnaire.py` | CSV-Fragen, heuristisches Control-Mapping, Evidence-Drafts | Antworten ohne Evidence erzeugen |
+| `document_ingest.py` | Lokale Dokument-Inventarisierung, Text/MD/CSV/JSON/DOCX/PDF-Parsing, OCR-needed/unsupported Status, stabile Evidence-IDs | OCR halluzinieren, Secrets lesen, Unsupported-Dateien crashen lassen |
+| `answer_vault.py` | SQLite Answer Vault, idempotentes Schema, reviewed Answer-Reuse, Case Review Queue | Antworten ohne Review/Evidence finalisieren, globale versteckte DB nutzen, destruktive Migration |
+| `pilot_product.py` | Produkt-Slice Dokumente -> Evidence -> Answer Vault -> Questionnaire Draft -> Review/Gaps/HTML | SaaS/UI-Plattform bauen, rohe Snippets in shareable Outputs exportieren, Compliance-Garantie behaupten |
 | `supplier_risk.py` | Deterministischer Supplier-Risk-Score | Finanz-/Compliance-Beratung, Live-Daten |
 | `trust_bundle.py` | Deterministischer metadata-only Bundle-Preview | Rohzitate, Draft-Antworten, private Pfade, Compliance-Claims exportieren |
 | `sbom.py` | Offline CycloneDX-Komponenten-Inventar und lokale Metadata-Gap-Findings | CVE/API/Netzwerk-Abfragen, rohe SBOM-Felder, SPDX-Halbsupport |
@@ -325,6 +331,10 @@ from aethelgard.mvp1 import (
   `test_ml_control_mapper.py`, `test_ml_severity.py`, `test_ml_active_learning.py`,
   `test_ml_cli.py` pruefen metadata-only Outputs, optionale/fallbackfaehige Modelle,
   Review-only Control-Vorschlaege, Dedupe, Weak-Label-Konflikte und CLI-Komposition.
+- Pilot-Product-Slice-Tests: `test_document_ingest.py`, `test_answer_vault.py`,
+  `test_pilot_product_slice.py` pruefen Multi-Format-Ingest, stabile Evidence-IDs,
+  SQLite-Migration/Versioning, reviewed Answer-Reuse, Missing-Evidence, Review Queue,
+  Shareable-Output-Redaction und Workspace-Inspect/Purge-Dry-Run.
 
 ## Bekannte Gotchas
 
@@ -393,16 +403,17 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Docker Local Delivery | RUNTIME_READY_WITH_ML_PROOF: Dockerfile, `.dockerignore`, Compose, statischer Delivery-Gate, `docker_smoke`, `docker_ml_smoke` und `consultant_laptop_smoke` gruen; ML-CLI im Container unter `--network none` getestet | 2026-06-30 |
 | Low-Compute ML Baselines | OK: pure-Python Feature-JSONL, BM25, SimHash, Weak Labels, fallback Doc-Type-Classifier, Control-Suggestions, Severity Ranking, Active-Review-Queue und redigierter Learning-Export; experimental, metadata-only, Human Review/Owner-Gate erforderlich | 2026-06-30 |
 | Delivery Profile | OK: metadata-only `delivery-profile validate`, synthetisches Demo-Profil, keine PII/Secrets/private Pfade, keine Safety-Overrides | 2026-06-30 |
-| Tests | 326/327 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-06-30 |
+| Pilot Product Slice | OK: `pilot-product`, `document-ingest`, `answer-vault`, `workspace inspect/purge`; SQLite Answer Vault, shareable/private Output-Split, Missing Evidence, Review Queue und HTML Preview; CLI-DB-Pfade projektgebunden, explizite Review-Disclaimer, keine Compliance-Garantie | 2026-07-01 |
+| Tests | 337/338 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-01 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
-| Fixture Safety | `python scripts/check_public_fixtures.py` gruen (27 Dateien) | 2026-06-28 |
+| Fixture Safety | `python scripts/check_public_fixtures.py` gruen (30 Dateien) | 2026-07-01 |
 | Real Public Source URL Check | Opt-in; 403/Timeout werden fuer offizielle Quellen als WARN klassifiziert | 2026-06-28 |
-| Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_PUBLIC_DATA_READY` nach `docker_smoke` + `docker_ml_smoke` Runtime-Proofs | 2026-06-30 |
+| Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_PUBLIC_DATA_READY`; Docker-Runtime bleibt Owner-Gate | 2026-07-01 |
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
-| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-06-30 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (21 Source-Dateien) | 2026-06-30 |
+| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-07-01 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (37 Source-Dateien) | 2026-07-01 |
 | Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)

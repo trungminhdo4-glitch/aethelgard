@@ -20,7 +20,12 @@ htmlcov/
 reports/
 *.log
 *.tmp
+*.sqlite
+*.sqlite3
+*.db
 .tmp/
+local_private/
+shareable_redacted/
 .idea/
 .vscode/
 *.swp
