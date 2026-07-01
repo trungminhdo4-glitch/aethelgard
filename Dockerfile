@@ -10,12 +10,14 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 COPY data ./data
 COPY examples ./examples
+COPY scripts ./scripts
 
 RUN python -m pip install --no-cache-dir -e ".[pdf]" \
     && groupadd --system --gid 10001 aethelgard \
     && useradd --system --uid 10001 --gid aethelgard --create-home \
         --home-dir /home/aethelgard aethelgard \
     && mkdir -p /workspace/reports \
+    && ln -s /app/scripts /workspace/scripts \
     && chown -R aethelgard:aethelgard /workspace /home/aethelgard
 
 USER 10001:10001

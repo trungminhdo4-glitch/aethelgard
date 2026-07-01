@@ -115,6 +115,8 @@ docs/
   pilot-scope.md           # In/Out of Scope, Inputs, Done/Stop Criteria
   target-selection-guide.md # Manuelle Zielauswahl ohne private Lead-Daten
   pilot-call-notes-template.md # Call-Notes und Go/No-Go-Erfassung
+  pilot_delivery_security.md # Delivery-Optionen, Source-Sichtbarkeit und Pilot-1-Empfehlung
+  pilot_license_notice.md  # Technische Pilot-Notice, keine Rechtsberatung
   evaluation/              # Public/Synthetic Eval-Plan, Quellenmanifest, Labeling
   research/                 # Berlin-Recherche, First-Wave-Drafts, Tracker, Response-/Demo-Runbooks
 scripts/
@@ -122,6 +124,8 @@ scripts/
   check_pilot_readiness.py # kontrollierter Paid-Pilot Gate-Report
   check_docker_delivery.py # statischer Docker-Delivery-Gate
   check_marketing_claims.py # statischer Marketing-Claim-/Kontakt-Safety-Gate
+  build_pilot_artifact.py  # begrenztes Pilot-Artefakt unter dist/, kein Repo-Root-Copy
+  check_delivery_artifact.py # Scanner fuer Delivery-Artefakt-Safety und Source-Claims
   docker_ml_smoke.ps1      # opt-in Docker-Runtime-Smoke fuer ML-CLI unter --network none
 examples/pilot/            # synthetischer lokaler End-to-End-Pilot-Pack
 examples/delivery_profile/ # synthetisches Berater-/Delivery-Profil ohne echte Kontaktdaten
@@ -342,6 +346,9 @@ from aethelgard.mvp1 import (
 - Diagnostics-/Support-Bundle-Tests: `test_diagnostics.py`, `test_support_bundle.py`
   pruefen Doctor-Reports ohne Rohinhalte, Debug-JSONL-Split, stabile Error-Codes,
   redacted ZIP-Inhalte und Privacy-Guard-Blockade fuer verbotene Marker.
+- Pilot-Delivery-Artefakt-Tests: `test_delivery_artifact.py` prueft Blockaden fuer
+  `.git`, `tests/`, `reports/`, `local_private/`, DBs, `.env`, Agent-Dateien,
+  Secret-Marker und Source-Claim-Konsistenz.
 
 ## Bekannte Gotchas
 
@@ -407,13 +414,14 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Trust Bundle Preview | OK: `trust-bundle build` erzeugt deterministic metadata-only Preview (`manifest`, Evidence-Index, Questionnaire-/Risk-Summary, README); keine Rohzitate, Drafts, privaten Pfade oder Compliance-Claims | 2026-06-29 |
 | Offline SBOM + Supplier Contracts | OK: `sbom ingest`, `sbom findings` und `supplier-profile validate`; CycloneDX-only, SPDX unsupported, stabile IDs, keine CVE/API/Netzwerk-Abfragen | 2026-06-29 |
 | Pilot Readiness Slice | OK: Review-Metadaten-Sanitization fuer `reviewer`, `reviewed_at`, `review_note`; `demo-pilot` E2E-Flow mit synthetischem Pack und manifest-only Public-Data-Entscheidung | 2026-06-30 |
-| Docker Local Delivery | RUNTIME_READY_WITH_ML_PROOF: Dockerfile, `.dockerignore`, Compose, statischer Delivery-Gate, `docker_smoke`, `docker_ml_smoke` und `consultant_laptop_smoke` gruen; ML-CLI im Container unter `--network none` getestet | 2026-06-30 |
+| Docker Local Delivery | RUNTIME_READY_WITH_ML_PROOF: Dockerfile, `.dockerignore`, Compose, statischer Delivery-Gate, `docker_smoke`, `docker_ml_smoke` und `consultant_laptop_smoke` gruen; `docker_smoke` prueft `pilot-product`, `doctor` und `support-bundle --redacted`; ML-CLI im Container unter `--network none` getestet | 2026-07-02 |
 | Low-Compute ML Baselines | OK: pure-Python Feature-JSONL, BM25, SimHash, Weak Labels, fallback Doc-Type-Classifier, Control-Suggestions, Severity Ranking, Active-Review-Queue und redigierter Learning-Export; experimental, metadata-only, Human Review/Owner-Gate erforderlich | 2026-06-30 |
 | Delivery Profile | OK: metadata-only `delivery-profile validate`, synthetisches Demo-Profil, keine PII/Secrets/private Pfade, keine Safety-Overrides | 2026-06-30 |
 | Pilot Product Slice | OK: `pilot-product`, `document-ingest`, `answer-vault`, `workspace inspect/purge`; SQLite Answer Vault, shareable/private Output-Split, Missing Evidence, Review Queue und HTML Preview; CLI-DB-Pfade projektgebunden, explizite Review-Disclaimer, keine Compliance-Garantie | 2026-07-01 |
 | Pilot Demo Marketing Pack | OK: statische Landingpage, Demo-Video-Script, Outreach-Pack, `docs/pilot_quickstart.md`, reproduzierbarer redacted `pilot-product` Demo-Run und `check_marketing_claims.py`; Docker-Runtime bleibt Owner-Gate | 2026-07-01 |
 | Pilot Diagnostics Support | OK: `doctor`, `support-bundle --redacted`, `pilot-product --debug`, lokale JSONL-Logs, stabile Error-Taxonomie, Privacy-Guard und `docs/pilot_support.md`; keine Telemetrie, kein Cloud-Monitoring, keine Kundendokumente/DBs im Bundle | 2026-07-01 |
-| Tests | 347/348 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-01 |
+| Pilot Delivery Packaging Layer | DEV_RUNTIME_READY_NOT_CUSTOMER_CLOSED: `build_pilot_artifact.py`, `check_delivery_artifact.py`, `docs/pilot_delivery_security.md`, `docs/pilot_license_notice.md`; dev-runtime ist source-visible und nicht als geschlossenes Kundenartefakt auslieferbar | 2026-07-02 |
+| Tests | 367/368 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-02 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (30 Dateien) | 2026-07-01 |

@@ -74,6 +74,14 @@ def build_report() -> dict[str, object]:
             "dockerfile_cli_entrypoint",
             _dockerfile_contains('"python", "-m", "aethelgard.cli"'),
         ),
+        _check(
+            "dockerfile_copies_scripts_for_doctor",
+            _dockerfile_contains("COPY scripts ./scripts"),
+        ),
+        _check(
+            "dockerfile_exposes_scripts_in_workspace",
+            _dockerfile_contains("ln -s /app/scripts /workspace/scripts"),
+        ),
         _check("compose_network_none", _compose_contains('network_mode: "none"')),
         _check("compose_read_only", _compose_contains("read_only: true")),
         _check(
@@ -87,7 +95,16 @@ def build_report() -> dict[str, object]:
             "docker_smoke_writes_runtime_proof",
             _script_contains(
                 "docker_smoke.ps1",
-                ("docker_runtime_proof.json", "DOCKER_RUNTIME_READY", "public-data validate"),
+                (
+                    "docker_runtime_proof.json",
+                    "DOCKER_RUNTIME_READY",
+                    "public-data validate",
+                    "pilot-product",
+                    "doctor",
+                    "support-bundle",
+                    "--redacted",
+                    "WriteAllText",
+                ),
             ),
         ),
         _check(

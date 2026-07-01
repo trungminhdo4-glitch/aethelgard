@@ -448,6 +448,19 @@ The release script creates a source ZIP, a commit-SHA Docker image tag, optional
 image tar, and `SHA256SUMS.txt`. It excludes `reports/`, `.git`, `.env*`, virtual
 environments, databases, logs, `dist/`, and research/outreach raw material.
 
+Pilot artifact rehearsal can be prepared with:
+
+```powershell
+python scripts\build_pilot_artifact.py --out dist\aethelgard-pilot --mode dev-runtime
+python scripts\check_delivery_artifact.py --path dist\aethelgard-pilot
+```
+
+The `dev-runtime` artifact is source-visible and is marked `not_for_customer_delivery`
+in `build_manifest.json`. It is useful for packaging checks only. Do not deliver it as
+a closed customer artifact. A closed pilot delivery needs a binary or compiled runtime
+that passes `check_delivery_artifact.py` with `no_source_claim: true` and no source
+files present.
+
 ## Evaluation Command
 
 ```powershell
