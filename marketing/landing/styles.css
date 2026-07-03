@@ -2,15 +2,45 @@
   --paper: #f7f7f2;
   --paper-warm: #efede4;
   --ink: #18201b;
-  --muted: #5d675f;
+  --muted: #545e56;
   --line: #d9ded4;
+  --surface: #ffffff;
   --forest: #1d614b;
   --forest-dark: #123d31;
   --gold: #c58a25;
   --coral: #b95e43;
   --blue: #315f75;
   --white: #ffffff;
+  --on-forest: #ffffff;
+  --accent-band: #ebe5d5;
+  --topbar-bg: rgba(247, 247, 242, 0.9);
   --shadow: rgba(24, 32, 27, 0.12);
+  --radius: 10px;
+  --radius-lg: 14px;
+  --ring: #1d614b;
+  --transition: 160ms ease;
+}
+
+/* Dark-Mode: gleiches Layout, kontrastarme Waldpalette invertiert. Reine Token-Ueberschreibung. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #10140f;
+    --paper-warm: #161c15;
+    --ink: #eef1e9;
+    --muted: #a9b3a6;
+    --line: #2b342a;
+    --surface: #171d16;
+    --forest: #3f9b7c;
+    --forest-dark: #cfe8dd;
+    --gold: #e0a94a;
+    --coral: #d98368;
+    --blue: #8fb6c6;
+    --on-forest: #0e1a15;
+    --accent-band: #1e261c;
+    --topbar-bg: rgba(16, 20, 15, 0.9);
+    --shadow: rgba(0, 0, 0, 0.5);
+    --ring: #3f9b7c;
+  }
 }
 
 * {
@@ -20,6 +50,43 @@
 
 html {
   scroll-behavior: smooth;
+}
+
+/* Tastatur-Fokus sichtbar (A11y) — nur bei Keyboard-Navigation, nicht bei Maus-Klick. */
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Nutzer mit reduzierter Bewegung: keine Scroll-Animation, keine Transitions. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  * {
+    transition: none !important;
+  }
+}
+
+/* Skip-Link: erste Tab-Station, springt zum Inhalt (A11y). */
+.skip-link {
+  background: var(--forest-dark);
+  border-radius: 0 0 var(--radius) 0;
+  color: var(--on-forest);
+  font-weight: 700;
+  left: 0;
+  padding: 0.7rem 1.1rem;
+  position: fixed;
+  top: 0;
+  transform: translateY(-120%);
+  transition: transform var(--transition);
+  z-index: 20;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
 }
 
 body {
@@ -38,7 +105,8 @@ a {
 
 .topbar {
   align-items: center;
-  background: rgba(247, 247, 242, 0.94);
+  backdrop-filter: saturate(1.4) blur(8px);
+  background: var(--topbar-bg);
   border-bottom: 1px solid var(--line);
   display: flex;
   gap: 1rem;
@@ -70,6 +138,7 @@ a {
   font-size: 0.95rem;
   font-weight: 650;
   text-decoration: none;
+  transition: color var(--transition);
 }
 
 .nav a:hover {
@@ -77,26 +146,24 @@ a {
 }
 
 .hero {
+  align-items: center;
   background: var(--paper-warm);
-  min-height: min(760px, calc(100vh - 2rem));
+  display: grid;
+  gap: clamp(2rem, 5vw, 4rem);
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
   overflow: hidden;
-  padding: clamp(4rem, 10vw, 7rem) clamp(1rem, 5vw, 5rem) clamp(5rem, 10vw, 8rem);
-  position: relative;
+  padding: clamp(3.5rem, 9vw, 6.5rem) clamp(1rem, 5vw, 5rem);
 }
 
 .hero-visual {
-  bottom: clamp(1rem, 4vw, 4rem);
-  opacity: 0.96;
-  position: absolute;
-  right: clamp(-7rem, -3vw, 1rem);
-  top: clamp(4rem, 9vw, 7rem);
-  width: min(52rem, 68vw);
+  opacity: 0.98;
+  width: 100%;
 }
 
 .report-window {
-  background: var(--white);
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 24px 80px var(--shadow);
   margin-left: auto;
   max-width: 42rem;
@@ -183,7 +250,8 @@ a {
 }
 
 .hero-copy {
-  max-width: 48rem;
+  max-width: 46rem;
+  order: -1;   /* Copy links, Visual rechts (DOM-Reihenfolge: Visual zuerst). */
   position: relative;
   z-index: 2;
 }
@@ -227,24 +295,35 @@ h2 {
 
 .button {
   align-items: center;
-  border-radius: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
   display: inline-flex;
   font-weight: 800;
   justify-content: center;
   min-height: 3rem;
-  padding: 0.85rem 1.1rem;
+  padding: 0.85rem 1.25rem;
   text-decoration: none;
+  transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+}
+
+.button:hover {
+  transform: translateY(-2px);
 }
 
 .button-primary {
   background: var(--forest-dark);
-  color: var(--white);
+  box-shadow: 0 8px 22px var(--shadow);
+  color: var(--on-forest);
 }
 
 .button-secondary {
-  background: var(--white);
-  border: 1px solid var(--line);
+  background: var(--surface);
+  border-color: var(--line);
   color: var(--forest-dark);
+}
+
+.button-secondary:hover {
+  border-color: var(--forest);
 }
 
 .hero-note {
@@ -258,11 +337,11 @@ h2 {
 }
 
 .band-muted {
-  background: var(--white);
+  background: var(--surface);
 }
 
 .band-accent {
-  background: #ebe5d5;
+  background: var(--accent-band);
 }
 
 .section-inner {
@@ -292,10 +371,19 @@ h2 {
 .audience-item,
 .offer-item,
 .step {
-  background: var(--white);
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 1rem;
+  transition: border-color var(--transition), transform var(--transition);
+}
+
+.solution-item:hover,
+.audience-item:hover,
+.offer-item:hover,
+.step:hover {
+  border-color: var(--forest);
+  transform: translateY(-2px);
 }
 
 .band-muted .solution-item,
@@ -345,12 +433,13 @@ h2 {
 
 .contact {
   background: var(--forest-dark);
-  color: var(--white);
+  color: var(--on-forest);
 }
 
 .contact .eyebrow,
 .contact p {
-  color: #dfe8df;
+  color: var(--on-forest);
+  opacity: 0.86;
 }
 
 .contact h2 {
@@ -364,15 +453,12 @@ h2 {
 
 @media (max-width: 900px) {
   .hero {
-    min-height: auto;
+    grid-template-columns: 1fr;
     padding-top: 3.5rem;
   }
 
   .hero-visual {
-    margin-top: 2rem;
-    position: relative;
-    right: auto;
-    top: auto;
+    margin-top: 1rem;
     width: 100%;
   }
 

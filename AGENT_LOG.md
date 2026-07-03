@@ -1,3 +1,11 @@
+### 2026-07-02 - Landingpage Design-Optimierung (A11y + Dark-Mode + Hero-Grid) (Fable 5)
+| Feld | Wert |
+|---|---|
+| Agent | Claude Code (Fable 5) |
+| Task | Owner: Aethelgard-Landingpage ansehen, passenden Design-Ansatz waehlen und die ChatGPT-Version optimieren — ohne das Marketing-Claim-Gate zu brechen. |
+| Commit | - (uncommittet — Owner-Gate). GEAENDERT: `marketing/landing/index.html`, `marketing/landing/styles.css`. |
+| Ergebnis | OK — `scripts/check_marketing_claims.py` weiter **grün** (keine externen URLs/Emails eingefuehrt → gate-safe; System-Fonts, keine Google-Fonts). Design-Skill-Entscheid: direkte Experten-CSS/HTML-Optimierung statt Mockup-/Widget-Skill, weil der Deliverable die DEPLOYBARE Datei ist (ein Widget-Skill erzeugt nur eine Wegwerf-Vorschau). Umgesetzt: **(A11y)** Skip-Link, `:focus-visible`-Ringe, `prefers-reduced-motion`, `color-scheme`-Meta, verbesserter `--muted`-Kontrast. **(Dark-Mode)** volle `prefers-color-scheme: dark`-Palette via reiner Token-Ueberschreibung (Surface/On-Forest/Accent-Band/Topbar-Tokens statt hartkodiertem Weiss). **(Robustheit)** Hero von absolut-ueberlappend (Text-ueber-Karte-Lesbarkeitsrisiko) auf 2-Spalten-Grid (Copy links/Visual rechts, stackt <900px). **(Politur)** Button-/Card-Hover-Transitions, Topbar-Backdrop-Blur, Share-Meta (og/twitter, text-only = gate-safe), Radius-Token-Skala. Strukturell validiert: CSS-Braces 80/80 balanciert, HTML-Tags matchen, `--surface`/Skip-Link/Dark-Media vorhanden. TODO_CONTACT-Platzhalter bewusst belassen (Owner ersetzt vor Deploy). Kein Commit/Push. |
+
 ### 2026-06-27 02:53 - Pilot-readiness hardening
 | Feld | Wert |
 |---|---|
