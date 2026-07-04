@@ -40,6 +40,7 @@ PILOT_READINESS_REPORT_NAME: Final[str] = "pilot_readiness_report.json"
 LOCAL_PRIVATE_DIR_NAME: Final[str] = "local_private"
 SHAREABLE_REDACTED_DIR_NAME: Final[str] = "shareable_redacted"
 
+GIT_COMMAND_TIMEOUT_SECONDS: Final[int] = 5
 MAX_LOG_MESSAGE_CHARS: Final[int] = 400
 MAX_TECHNICAL_DETAIL_CHARS: Final[int] = 4_000
 MAX_SUPPORT_FILE_BYTES: Final[int] = 500_000
@@ -592,7 +593,7 @@ def _git_commit() -> str:
             check=False,
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=GIT_COMMAND_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.SubprocessError):
         return "unknown"

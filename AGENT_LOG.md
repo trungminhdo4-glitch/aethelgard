@@ -1,3 +1,11 @@
+### 2026-07-04 - Exit-Code-Konsolidierung + document-ingest CLI-Tests (Fable 5)
+| Feld | Wert |
+|---|---|
+| Agent | Claude Code (Fable 5) |
+| Task | Orchestrator-Session: Multi-Agent-Leverage-Scan ueber HOS+Aethelgard, bestaetigte Findings umgesetzt. (1) Exit-Codes 3-7 lebten nur in `cli.py`, Code 8 doppelt definiert (`errors.py:12` + `cli.py:104` ohne Import = stilles Drift-Risiko) — konsolidiert: `EXIT_PREFLIGHT_BLOCKED/REVIEW_APPLY_ERROR/C_SCRM_ERROR/ML_ERROR/DELIVERY_PROFILE_ERROR` neu in `errors.py`, `cli.py` importiert und re-exportiert die bisherigen Alias-Namen (10 Testdateien importieren sie — bleiben stabil). (2) `document-ingest` war der einzige CLI-Subcommand ohne jeden `main()`-Test — `tests/test_cli_document_ingest.py` neu (5 Tests: Happy-Path, fehlender Input Exit 8, `--out`-Sandbox, `--no-local-excerpts`, `--debug`-JSONL). (3) Magic Number `timeout=5` in `diagnostics._git_commit` durch `GIT_COMMAND_TIMEOUT_SECONDS` ersetzt (analog `model_registry.py:16`; Helper bewusst NICHT geteilt — short- vs. voll-Hash + andere Fallbacks). (4) Git-Bundle-Backup erstellt: `D:\backups\agent-git-bundles\aethelgard_20260704_113503_d4aa3f2.bundle` (Repo hat KEIN Remote — einzige externe Sicherung). |
+| Commit | siehe git log (dieser Commit) |
+| Ergebnis | OK — ruff gruen, mypy strict gruen (39 Dateien), Suite 372/373 (1 opt-in Skip, vorher 367). OFFEN (Owner): (a) `main` liegt 18 Commits hinter `codex/nis2-control-coverage` (Fast-Forward waere `git checkout main && git merge --ff-only codex/nis2-control-coverage` — reversibel, aber Merge-Entscheid liegt beim Owner); (b) kein Remote → Push-Ziel anlegen; (c) TODO_CONTACT in 5 Auslieferungsdateien (Legal-Review vor Deploy). |
+
 ### 2026-07-02 - Landingpage Design-Optimierung (A11y + Dark-Mode + Hero-Grid) (Fable 5)
 | Feld | Wert |
 |---|---|

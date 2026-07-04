@@ -9,6 +9,11 @@ ErrorSeverity = Literal["info", "warning", "error", "critical"]
 
 EXIT_INTERNAL_ERROR: Final[int] = 1
 EXIT_READINESS_FAILED: Final[int] = 2
+EXIT_PREFLIGHT_BLOCKED: Final[int] = 3
+EXIT_REVIEW_APPLY_ERROR: Final[int] = 4
+EXIT_C_SCRM_ERROR: Final[int] = 5
+EXIT_ML_ERROR: Final[int] = 6
+EXIT_DELIVERY_PROFILE_ERROR: Final[int] = 7
 EXIT_PILOT_PRODUCT_ERROR: Final[int] = 8
 EXIT_PRIVACY_GUARD_BLOCKED: Final[int] = 9
 EXIT_CONFIG_ERROR: Final[int] = 10

@@ -36,6 +36,12 @@ from aethelgard.diagnostics import (
 )
 from aethelgard.document_ingest import DocumentIngestError, run_document_ingest
 from aethelgard.errors import (
+    EXIT_C_SCRM_ERROR,
+    EXIT_DELIVERY_PROFILE_ERROR,
+    EXIT_ML_ERROR,
+    EXIT_PILOT_PRODUCT_ERROR,
+    EXIT_PREFLIGHT_BLOCKED,
+    EXIT_REVIEW_APPLY_ERROR,
     AethelgardDiagnosticError,
     ErrorCode,
     exit_code_for_error,
@@ -96,12 +102,12 @@ from aethelgard.trust_bundle import TrustBundleError, build_trust_bundle_preview
 
 REVIEW_CSV_NAME: Final[str] = review_module.REVIEW_CSV_NAME
 REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = review_module.REVIEW_CSV_COLUMNS
-PREFLIGHT_BLOCK_EXIT_CODE: Final[int] = 3
-REVIEW_APPLY_ERROR_EXIT_CODE: Final[int] = 4
-C_SCRM_ERROR_EXIT_CODE: Final[int] = 5
-ML_ERROR_EXIT_CODE: Final[int] = 6
-DELIVERY_PROFILE_ERROR_EXIT_CODE: Final[int] = 7
-PILOT_PRODUCT_ERROR_EXIT_CODE: Final[int] = 8
+PREFLIGHT_BLOCK_EXIT_CODE: Final[int] = EXIT_PREFLIGHT_BLOCKED
+REVIEW_APPLY_ERROR_EXIT_CODE: Final[int] = EXIT_REVIEW_APPLY_ERROR
+C_SCRM_ERROR_EXIT_CODE: Final[int] = EXIT_C_SCRM_ERROR
+ML_ERROR_EXIT_CODE: Final[int] = EXIT_ML_ERROR
+DELIVERY_PROFILE_ERROR_EXIT_CODE: Final[int] = EXIT_DELIVERY_PROFILE_ERROR
+PILOT_PRODUCT_ERROR_EXIT_CODE: Final[int] = EXIT_PILOT_PRODUCT_ERROR
 DEMO_PILOT_SUMMARY_NAME: Final[str] = "demo_pilot_summary.json"
 DEMO_REVIEWED_AT: Final[str] = "2026-06-30T00:00:00+00:00"
 DEMO_ACCEPTABLE_CATEGORIES: Final[frozenset[str]] = frozenset(

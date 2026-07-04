@@ -346,6 +346,9 @@ from aethelgard.mvp1 import (
 - Diagnostics-/Support-Bundle-Tests: `test_diagnostics.py`, `test_support_bundle.py`
   pruefen Doctor-Reports ohne Rohinhalte, Debug-JSONL-Split, stabile Error-Codes,
   redacted ZIP-Inhalte und Privacy-Guard-Blockade fuer verbotene Marker.
+- CLI-Document-Ingest-Tests: `test_cli_document_ingest.py` prueft den `main()`-Pfad:
+  Happy-Path-Artefakte, fehlender Input (Exit 8), `--out`-Sandbox-Blockade,
+  `--no-local-excerpts` (kein `redacted_excerpt` in der Evidence-Map) und `--debug`-JSONL-Logs.
 - Pilot-Delivery-Artefakt-Tests: `test_delivery_artifact.py` prueft Blockaden fuer
   `.git`, `tests/`, `reports/`, `local_private/`, DBs, `.env`, Agent-Dateien,
   Secret-Marker und Source-Claim-Konsistenz.
@@ -421,7 +424,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Pilot Demo Marketing Pack | OK: statische Landingpage, Demo-Video-Script, Outreach-Pack, `docs/pilot_quickstart.md`, reproduzierbarer redacted `pilot-product` Demo-Run und `check_marketing_claims.py`; Docker-Runtime bleibt Owner-Gate | 2026-07-01 |
 | Pilot Diagnostics Support | OK: `doctor`, `support-bundle --redacted`, `pilot-product --debug`, lokale JSONL-Logs, stabile Error-Taxonomie, Privacy-Guard und `docs/pilot_support.md`; keine Telemetrie, kein Cloud-Monitoring, keine Kundendokumente/DBs im Bundle | 2026-07-01 |
 | Pilot Delivery Packaging Layer | DEV_RUNTIME_READY_NOT_CUSTOMER_CLOSED: `build_pilot_artifact.py`, `check_delivery_artifact.py`, `docs/pilot_delivery_security.md`, `docs/pilot_license_notice.md`; dev-runtime ist source-visible und nicht als geschlossenes Kundenartefakt auslieferbar | 2026-07-02 |
-| Tests | 367/368 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-02 |
+| CLI Exit-Code Konsolidierung | OK: Codes 3-8 zentral in `errors.py` (EXIT_*-Konstanten), `cli.py` re-exportiert die bisherigen Alias-Namen (Testimporte stabil); `document-ingest` erstmals CLI-getestet (5 Tests via `main()`) | 2026-07-04 |
+| Tests | 372/373 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-04 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (30 Dateien) | 2026-07-01 |
