@@ -275,7 +275,8 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **381 Tests** (Stand 2026-07-06; readiness = PILOT_PUBLIC_DATA_READY), vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped) — exakter Stand via `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q`
+- **403 Tests** (Stand 2026-07-06; readiness = PILOT_PUBLIC_DATA_READY), vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped) — exakter Stand via `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q`
+- **Data-Gate (Zwei-Klassen-PII)**: `src/aethelgard/pii_classification.py` trennt deklarierte Class-1-Firmen-Metadaten (company/security-contact/DPO/ISO-Scope) von Class-2-Dritt-PII (deny-by-default, strukturell — NIE heuristisch). CLI: `datagate validate-metadata` / `datagate guard`. In `answer_vault` additiv verdrahtet (Default `company_metadata=None` = byte-identisch). Doku: `docs/data-gate.md`. **Gotcha**: `--out` muss im Projektordner bleiben (wie alle Commands). **Bekannt**: mypy strict hat 17 VOR-BESTEHENDE Fehler (tests/scripts Typing-Strenge, keine Logikbugs) — neuer Code ist mypy-clean.
 - Externe IO (Dateisystem, pypdf) zu 100 % gemockt via `unittest.mock`
 - AAA-Pattern (Arrange, Act, Assert)
 - Test-Klassen (document_parser): `TestComplianceEvidenceSchema`,
