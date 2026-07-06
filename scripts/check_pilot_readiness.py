@@ -39,6 +39,8 @@ PUBLIC_DATA_MANIFEST: Final[Path] = (
     PROJECT_ROOT / "examples" / "public" / "public_data_manifest.json"
 )
 DOCKER_RUNTIME_PROOF_NAME: Final[str] = "docker_runtime_proof.json"
+# Timeout for the read-only `git status` probe (family value = other git subprocesses in this repo).
+GIT_STATUS_TIMEOUT_SECONDS: Final[int] = 10
 DOCKER_ML_RUNTIME_PROOF_NAME: Final[str] = "docker_ml_runtime_proof.json"
 EXCLUDED_DIR_NAMES: Final[frozenset[str]] = frozenset(
     {
@@ -590,7 +592,7 @@ def _reports_are_not_staged() -> bool:
         check=False,
         capture_output=True,
         text=True,
-        timeout=10,
+        timeout=GIT_STATUS_TIMEOUT_SECONDS,
     )
     return completed.returncode == 0 and not completed.stdout.strip()
 

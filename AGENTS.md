@@ -54,7 +54,7 @@ src/aethelgard/
   document_ingest.py       # Multi-Format Document Inventory, DOCX/CSV/JSON, OCR-needed Status
   answer_vault.py          # Lokaler SQLite Client Profile / Answer Vault + Draft-Reuse
   pilot_product.py         # Integrierter Pilot Product Slice + Shareable/Private Output-Split
-  supplier_risk.py         # Deterministischer Supplier-Risk-Score + JSON/MD-Report
+  supplier_risk.py         # Deterministischer Supplier-Risk-Score + JSON/MD-Report (+ evidence_basis: corroborated/partial_evidence/criticality_only, rein additiv)
   trust_bundle.py          # Metadata-only Trust-Bundle-Preview-Export
   sbom.py                  # Offline CycloneDX-SBOM-Inventar + Metadata-Gap-Findings
   supplier_profile.py      # Supplier-Cascade-Profilvertrag + Validator
@@ -275,7 +275,7 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **297 Tests**, vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped)
+- **377 Tests** (Stand 2026-07-05), vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped) — exakter Stand via `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q`
 - Externe IO (Dateisystem, pypdf) zu 100 % gemockt via `unittest.mock`
 - AAA-Pattern (Arrange, Act, Assert)
 - Test-Klassen (document_parser): `TestComplianceEvidenceSchema`,

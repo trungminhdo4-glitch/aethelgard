@@ -31,6 +31,14 @@ HIGH_RISK_THRESHOLD: Final[int] = 80
 MEDIUM_RISK_THRESHOLD: Final[int] = 60
 LOW_RISK_THRESHOLD: Final[int] = 35
 
+# Evidence-basis label (purely additive; does NOT change risk_score/risk_level). Mirrors the
+# fragility labeling in the sibling HOS discovery module: a score driven only by the self-declared
+# criticality base is far thinner than one corroborated by assessed questionnaire items + findings.
+EVIDENCE_BASIS_CORROBORATED: Final[str] = "corroborated"
+EVIDENCE_BASIS_PARTIAL: Final[str] = "partial_evidence"
+EVIDENCE_BASIS_CRITICALITY_ONLY: Final[str] = "criticality_only"
+MIN_CORROBORATION_SIGNALS: Final[int] = 2
+
 Criticality = Literal["low", "medium", "high", "critical"]
 
 CRITICALITY_BASE_SCORE: Final[dict[str, int]] = {
@@ -109,6 +117,7 @@ def build_supplier_risk_report(
         },
         "risk_score": risk_score,
         "risk_level": _risk_level(risk_score),
+        "evidence_basis": _evidence_basis(score_components),
         "score_components": score_components,
         "questionnaire_status_counts": status_counts,
         "open_findings": open_findings,
@@ -142,6 +151,7 @@ def render_supplier_risk_markdown(report: Mapping[str, object]) -> str:
         "## Score",
         "- Risk score: `%d`" % risk_score,
         "- Risk level: `%s`" % report["risk_level"],
+        "- Evidence basis: `%s`" % report.get("evidence_basis", EVIDENCE_BASIS_CRITICALITY_ONLY),
         "",
         "## Components",
     ]
@@ -220,6 +230,26 @@ def _risk_level(score: int) -> str:
     if score >= LOW_RISK_THRESHOLD:
         return "low"
     return "watch"
+
+
+def _evidence_basis(score_components: Mapping[str, int]) -> str:
+    """Classify how broadly the score is evidenced (purely additive; risk_score is unchanged).
+
+    ``criticality`` is always present (self-declared base). Count the *other* non-zero components
+    (evidence gaps, open findings, questionnaire review) as independent signal families: >=2 =>
+    corroborated, exactly 1 => partial_evidence, none => criticality_only (the score rests solely on
+    the self-declared criticality — a 'medium'/'high' label without any assessed evidence).
+    """
+    corroborating = sum(
+        1
+        for name, value in score_components.items()
+        if name != "criticality" and value > 0
+    )
+    if corroborating >= MIN_CORROBORATION_SIGNALS:
+        return EVIDENCE_BASIS_CORROBORATED
+    if corroborating == 1:
+        return EVIDENCE_BASIS_PARTIAL
+    return EVIDENCE_BASIS_CRITICALITY_ONLY
 
 
 def _read_json(path: Path, label: str) -> Mapping[str, object]:
