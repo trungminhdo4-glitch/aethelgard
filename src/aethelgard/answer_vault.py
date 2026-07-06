@@ -14,6 +14,7 @@ from typing import Final, Literal, cast
 
 from aethelgard import __version__
 from aethelgard.document_ingest import CONTROL_ALIASES, TOPIC_CLUSTERS, detect_topics_for_text
+from aethelgard.pii_classification import CompanyMetadata, guard_shareable_text
 from aethelgard.questionnaire import (
     MAX_QUESTION_CHARS,
     QuestionnaireQuestion,
@@ -258,6 +259,7 @@ def import_answer_library_json(
     answers_path: Path | str,
     *,
     client_id: str,
+    company_metadata: CompanyMetadata | None = None,
 ) -> dict[str, object]:
     """Import a local reviewed baseline answer JSON document."""
     safe_client_id = _safe_id(client_id, MAX_CLIENT_ID_CHARS, "client_id")
@@ -271,7 +273,9 @@ def import_answer_library_json(
         for raw_answer in raw_answers:
             if not isinstance(raw_answer, Mapping):
                 raise AnswerVaultError("answer library item must be an object")
-            _upsert_answer(connection, safe_client_id, raw_answer)
+            _upsert_answer(
+                connection, safe_client_id, raw_answer, company_metadata=company_metadata
+            )
             imported += 1
         _append_audit_log(connection, "import_answer_library", {"answers": imported})
     return {"imported": imported, "client_id": safe_client_id}
@@ -283,6 +287,7 @@ def import_reviewed_report_answers(
     *,
     client_id: str,
     source_case_id: str = "",
+    company_metadata: CompanyMetadata | None = None,
 ) -> dict[str, object]:
     """Import accepted/reviewed questionnaire findings into the answer vault."""
     safe_client_id = _safe_id(client_id, MAX_CLIENT_ID_CHARS, "client_id")
@@ -325,7 +330,7 @@ def import_reviewed_report_answers(
                 "confidence": item.get("confidence", item.get("confidence_score", 0.8)),
                 "source_case_id": safe_case_id,
             }
-            _upsert_answer(connection, safe_client_id, answer)
+            _upsert_answer(connection, safe_client_id, answer, company_metadata=company_metadata)
             imported += 1
         _append_audit_log(
             connection,
@@ -674,16 +679,18 @@ def _upsert_answer(
     connection: sqlite3.Connection,
     client_id: str,
     answer: Mapping[str, object],
+    *,
+    company_metadata: CompanyMetadata | None = None,
 ) -> None:
     cluster = _valid_cluster(str(answer.get("question_cluster", "")))
     canonical_question = _safe_text(
         str(answer.get("canonical_question", _canonical_question(cluster))),
         MAX_QUESTION_CHARS,
     )
-    answer_de = _safe_text(str(answer.get("answer_de", "")), MAX_ANSWER_CHARS)
+    answer_de = _safe_answer_text(str(answer.get("answer_de", "")), company_metadata)
     if not answer_de:
         raise AnswerVaultError("answer_de is required for answer_library import")
-    answer_en = _safe_text(str(answer.get("answer_en", "")), MAX_ANSWER_CHARS)
+    answer_en = _safe_answer_text(str(answer.get("answer_en", "")), company_metadata)
     evidence_refs = _normalize_string_sequence(answer.get("evidence_refs", ()))
     review_status = str(answer.get("review_status", "reviewed")).strip().lower()
     if review_status not in {"reviewed", "draft", "needs_review", "rejected", "stale"}:
@@ -1196,6 +1203,19 @@ def _safe_text(value: str, max_chars: int) -> str:
     single_line = " ".join(value.split())
     bounded = single_line[:max_chars]
     return mask_sensitive_text(bounded) if has_sensitive_markers(bounded) else bounded
+
+
+def _safe_answer_text(value: str, company_metadata: CompanyMetadata | None) -> str:
+    """Sanitize an answer body, preserving declared Class-1 company metadata.
+
+    Class-2 markers (incidental third-party PII) are masked as before. With no declared company
+    metadata this is byte-for-byte identical to ``_safe_text`` at ``MAX_ANSWER_CHARS``.
+    """
+    single_line = " ".join(value.split())
+    bounded = single_line[:MAX_ANSWER_CHARS]
+    if company_metadata is None:
+        return mask_sensitive_text(bounded) if has_sensitive_markers(bounded) else bounded
+    return guard_shareable_text(bounded, company_metadata).text
 
 
 def _safe_temporal_text(value: str) -> str:
