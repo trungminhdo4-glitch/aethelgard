@@ -71,6 +71,11 @@ from aethelgard.ml_baselines.model_registry import write_json as write_ml_json
 from aethelgard.ml_baselines.severity import SeverityError, rank_findings
 from aethelgard.ml_baselines.simhash import SimHashError, detect_near_duplicates
 from aethelgard.ml_baselines.weak_labels import write_weak_labels_jsonl
+from aethelgard.pii_classification import (
+    PiiClassificationError,
+    guard_shareable_text,
+    load_company_metadata,
+)
 from aethelgard.pilot_product import (
     DEFAULT_CASE_ID,
     DEFAULT_CLIENT_ID,
@@ -108,6 +113,7 @@ C_SCRM_ERROR_EXIT_CODE: Final[int] = EXIT_C_SCRM_ERROR
 ML_ERROR_EXIT_CODE: Final[int] = EXIT_ML_ERROR
 DELIVERY_PROFILE_ERROR_EXIT_CODE: Final[int] = EXIT_DELIVERY_PROFILE_ERROR
 PILOT_PRODUCT_ERROR_EXIT_CODE: Final[int] = EXIT_PILOT_PRODUCT_ERROR
+DATAGATE_MAX_TEXT_BYTES: Final[int] = 1_000_000
 DEMO_PILOT_SUMMARY_NAME: Final[str] = "demo_pilot_summary.json"
 DEMO_REVIEWED_AT: Final[str] = "2026-06-30T00:00:00+00:00"
 DEMO_ACCEPTABLE_CATEGORIES: Final[frozenset[str]] = frozenset(
@@ -579,6 +585,53 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output public-data validation JSON file.",
     )
 
+    datagate_parser = subparsers.add_parser(
+        "datagate",
+        help="Classify declared company metadata vs third-party PII and guard shareable text.",
+    )
+    datagate_subparsers = datagate_parser.add_subparsers(
+        dest="datagate_command",
+        required=True,
+    )
+    datagate_validate_parser = datagate_subparsers.add_parser(
+        "validate-metadata",
+        help="Validate declared Class-1 company metadata and report ignored fields.",
+    )
+    datagate_validate_parser.add_argument(
+        "--company-metadata",
+        required=True,
+        type=Path,
+        help="Company metadata JSON file with declared Class-1 fields.",
+    )
+    datagate_validate_parser.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="Output company-metadata validation JSON file.",
+    )
+    datagate_guard_parser = datagate_subparsers.add_parser(
+        "guard",
+        help="Mask third-party PII in a text file while preserving declared company metadata.",
+    )
+    datagate_guard_parser.add_argument(
+        "--text-file",
+        required=True,
+        type=Path,
+        help="UTF-8 text file to guard before sharing.",
+    )
+    datagate_guard_parser.add_argument(
+        "--company-metadata",
+        type=Path,
+        default=None,
+        help="Optional company metadata JSON whose declared Class-1 values are preserved.",
+    )
+    datagate_guard_parser.add_argument(
+        "--out",
+        required=True,
+        type=Path,
+        help="Output guarded-text report JSON file.",
+    )
+
     supplier_profile_parser = subparsers.add_parser(
         "supplier-profile",
         help="Validate metadata-only supplier cascade profile contracts.",
@@ -893,6 +946,7 @@ def main(argv: list[str] | None = None) -> int:
         "trust-bundle",
         "sbom",
         "public-data",
+        "datagate",
         "supplier-profile",
         "delivery-profile",
         "doctor",
@@ -916,6 +970,7 @@ def _run_local_workflow(args: argparse.Namespace) -> int:
         "trust-bundle": _run_trust_bundle,
         "sbom": _run_sbom,
         "public-data": _run_public_data,
+        "datagate": _run_datagate,
         "supplier-profile": _run_supplier_profile,
         "delivery-profile": _run_delivery_profile,
         "doctor": _run_doctor,
@@ -1448,6 +1503,56 @@ def _run_public_data(args: argparse.Namespace) -> int:
         )
         return C_SCRM_ERROR_EXIT_CODE
     return 0
+
+
+def _run_datagate(args: argparse.Namespace) -> int:
+    try:
+        output_path = _resolve_output_path(cast(Path, args.out))
+        if args.datagate_command == "validate-metadata":
+            metadata = load_company_metadata(cast(Path, args.company_metadata))
+            report: dict[str, object] = {
+                "report_type": "company_metadata_validation",
+                "accepted_count": len(metadata.fields),
+                "accepted_fields": dict(metadata.fields),
+                "ignored_fields": list(metadata.ignored_fields),
+            }
+        elif args.datagate_command == "guard":
+            metadata_arg = cast(Path | None, args.company_metadata)
+            guard_metadata = (
+                load_company_metadata(metadata_arg) if metadata_arg is not None else None
+            )
+            guarded = guard_shareable_text(
+                _read_datagate_text(cast(Path, args.text_file)), guard_metadata
+            )
+            report = {
+                "report_type": "guarded_text",
+                "had_sensitive": guarded.had_sensitive,
+                "preserved": list(guarded.preserved),
+                "masked_types": list(guarded.masked_types),
+                "guarded_text": guarded.text,
+            }
+        else:
+            raise PiiClassificationError("unknown datagate command: %s" % args.datagate_command)
+        output_path.write_text(
+            json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+    except PiiClassificationError as exc:
+        print("datagate %s failed: %s" % (args.datagate_command, exc), file=sys.stderr)
+        return C_SCRM_ERROR_EXIT_CODE
+    return 0
+
+
+def _read_datagate_text(path: Path) -> str:
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise PiiClassificationError("could not read text file: %s" % path.name) from exc
+    if len(raw) > DATAGATE_MAX_TEXT_BYTES:
+        raise PiiClassificationError("text file exceeds the datagate size limit")
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise PiiClassificationError("text file must be UTF-8 text") from exc
 
 
 def _run_supplier_profile(args: argparse.Namespace) -> int:

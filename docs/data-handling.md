@@ -16,7 +16,9 @@
 - Private databases, raw logs, monitoring exports, support dumps, incident evidence
   packs, forensic images, or production telemetry.
 - Personal data where avoidable, including named employees, private phone numbers,
-  personal email addresses, HR notes, or customer/end-user records.
+  personal email addresses, HR notes, or customer/end-user records. See
+  [data-gate.md](data-gate.md) for how curated company metadata (Class 1) is distinguished
+  from incidental third-party personal data (Class 2).
 - Productive access details such as VPN profiles, admin URLs, passwords, seed phrases,
   recovery codes, or internal network maps.
 - Incident details naming real affected persons, patients, customers, or suppliers.
