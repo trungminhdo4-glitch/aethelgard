@@ -128,3 +128,53 @@ def test_redaction_preflight_warns_for_private_network_markers(tmp_path: Path) -
     assert len(findings) == 2
     assert all("app01.internal" not in finding["snippet"] for finding in findings)
     assert all("10.0.0.8" not in finding["snippet"] for finding in findings)
+
+
+def test_redaction_preflight_blocks_database_input(tmp_path: Path) -> None:
+    (tmp_path / "customer.sqlite").write_bytes(b"SQLite format 3\x00binary payload")
+
+    report = run_redaction_preflight(tmp_path)
+
+    findings = _findings_of_type(report, "forbidden_binary")
+    assert report["status"] == "block"
+    assert report["files_scanned"] == 0
+    assert len(findings) == 1
+    assert findings[0]["severity"] == "high"
+    assert "binary payload" not in findings[0]["snippet"]
+
+
+def test_redaction_preflight_blocks_archive_and_key_inputs(tmp_path: Path) -> None:
+    (tmp_path / "backup.zip").write_bytes(b"PK\x03\x04archive")
+    (tmp_path / "server.pfx").write_bytes(b"\x30\x82key-material")
+
+    report = run_redaction_preflight(tmp_path)
+
+    findings = _findings_of_type(report, "forbidden_binary")
+    assert report["status"] == "block"
+    assert len(findings) == 2
+    assert all(finding["severity"] == "high" for finding in findings)
+
+
+def test_redaction_preflight_blocks_oversize_non_text_binary(tmp_path: Path) -> None:
+    from aethelgard.redaction_preflight import MAX_INPUT_FILE_BYTES
+
+    document = tmp_path / "dump.bin"
+    document.write_bytes(b"\x00" * (MAX_INPUT_FILE_BYTES + 1))
+
+    report = run_redaction_preflight(tmp_path)
+
+    findings = _findings_of_type(report, "forbidden_binary")
+    assert report["status"] == "block"
+    assert len(findings) == 1
+    assert findings[0]["severity"] == "high"
+
+
+def test_redaction_preflight_small_non_text_stays_unsupported_warn(tmp_path: Path) -> None:
+    # A small ordinary non-text file (e.g. a logo) must stay a soft "unsupported" hint, not a block.
+    (tmp_path / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\n small image bytes")
+
+    report = run_redaction_preflight(tmp_path)
+
+    assert report["status"] == "warn"
+    assert not _findings_of_type(report, "forbidden_binary")
+    assert len(_findings_of_type(report, "unsupported")) == 1

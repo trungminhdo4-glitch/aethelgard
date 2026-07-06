@@ -32,6 +32,23 @@ SECRET_FILENAME_MARKERS: Final[tuple[str, ...]] = (
     "secret",
     "secrets",
 )
+# Datei-Endungen, die als PILOT-INPUT nie zulaessig sind (fail-closed BLOCK, nicht nur WARN):
+# Rohdatenbanken, ungepruefte Archive, Schluessel-/Zertifikats-/Keystore-Material. Ein Kunde, der
+# so etwas versehentlich in den Input-Ordner legt, soll einen harten Stopp bekommen, keinen Hinweis.
+FORBIDDEN_INPUT_SUFFIXES: Final[frozenset[str]] = frozenset(
+    {
+        # Rohdatenbanken
+        ".db", ".sqlite", ".sqlite3", ".mdb", ".accdb", ".dbf",
+        # ungepruefte Archive
+        ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz",
+        # Schluessel / Zertifikate / Keystores
+        ".key", ".pem", ".pfx", ".p12", ".p8", ".crt", ".cer", ".der",
+        ".jks", ".keystore", ".asc", ".gpg", ".ppk",
+    }
+)
+# Nicht-Text-Datei ueber diesem Limit = "grosse Binaerdatei" -> BLOCK (z. B. Disk-Image/Daten-Dump).
+# Kleinere Nicht-Text-Dateien (Logo/Screenshot) bleiben ein reiner "unsupported"-Hinweis.
+MAX_INPUT_FILE_BYTES: Final[int] = 25_000_000
 
 EMAIL_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b",
@@ -74,6 +91,7 @@ FindingType = Literal[
     "iban",
     "private_network",
     "keyword",
+    "forbidden_binary",
     "unsupported",
 ]
 MatchPredicate = Callable[[str], bool]
@@ -128,8 +146,26 @@ def run_redaction_preflight(
                 )
             )
             continue
-        if file_path.suffix.lower() not in TEXT_SUFFIXES:
-            findings.append(_unsupported(relative_file, "unsupported or non-text file skipped"))
+        suffix = file_path.suffix.lower()
+        if suffix in FORBIDDEN_INPUT_SUFFIXES:
+            findings.append(
+                _forbidden_binary(
+                    relative_file,
+                    "[forbidden-input:%s] database/archive/key material is not an allowed input"
+                    % (suffix.lstrip(".") or "binary"),
+                )
+            )
+            continue
+        if suffix not in TEXT_SUFFIXES:
+            if _file_size(file_path) > MAX_INPUT_FILE_BYTES:
+                findings.append(
+                    _forbidden_binary(
+                        relative_file,
+                        "[oversize-binary:redacted] non-text file exceeds the input size limit",
+                    )
+                )
+            else:
+                findings.append(_unsupported(relative_file, "unsupported or non-text file skipped"))
             continue
 
         file_findings, scanned = _scan_text_file(file_path, relative_file)
@@ -374,6 +410,18 @@ def _finding(
 
 def _unsupported(file_name: str, snippet: str) -> PreflightFinding:
     return _finding(file_name, "unsupported", "low", None, snippet)
+
+
+def _forbidden_binary(file_name: str, snippet: str) -> PreflightFinding:
+    """High-severity finding for forbidden inputs (databases/archives/keys/oversize binaries)."""
+    return _finding(file_name, "forbidden_binary", "high", None, snippet)
+
+
+def _file_size(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except OSError:
+        return -1
 
 
 def _report(

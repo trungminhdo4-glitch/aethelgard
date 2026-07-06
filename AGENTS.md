@@ -82,7 +82,7 @@ src/aethelgard/
   audit.py                 # Append-only JSONL Run-Ledger (Metadaten, keine Inhalte)
   cli.py                   # CLI: triage + eval + pilot-run + demo-pilot + review-apply + C-SCRM + trust-bundle + SBOM
   public_sources.py        # Pure URL-Check-Klassifikation fuer offizielle Quellen
-  redaction_preflight.py   # Lokaler Sensitive-Content-Preflight mit Maskierung
+  redaction_preflight.py   # Lokaler Sensitive-Content-Preflight mit Maskierung; forbidden_binary (DB/Archiv/Key/>25MB) = block
   review.py                # Human-Review-Import, reviewed reports, review summary
   triage.py                # Report-, Quality-, Calibration- und Evaluations-Engine
 data/control_catalogs/
@@ -275,7 +275,7 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **377 Tests** (Stand 2026-07-05), vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped) — exakter Stand via `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q`
+- **381 Tests** (Stand 2026-07-06; readiness = PILOT_PUBLIC_DATA_READY), vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped) — exakter Stand via `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q`
 - Externe IO (Dateisystem, pypdf) zu 100 % gemockt via `unittest.mock`
 - AAA-Pattern (Arrange, Act, Assert)
 - Test-Klassen (document_parser): `TestComplianceEvidenceSchema`,
