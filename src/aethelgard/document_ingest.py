@@ -53,6 +53,7 @@ SourceType = Literal[
     "csv",
     "json",
     "docx",
+    "xlsx",
     "pdf",
     "image",
     "unsupported",
@@ -72,6 +73,7 @@ MARKDOWN_SUFFIXES: Final[frozenset[str]] = frozenset({".md", ".markdown"})
 CSV_SUFFIXES: Final[frozenset[str]] = frozenset({".csv"})
 JSON_SUFFIXES: Final[frozenset[str]] = frozenset({".json"})
 DOCX_SUFFIXES: Final[frozenset[str]] = frozenset({".docx"})
+XLSX_SUFFIXES: Final[frozenset[str]] = frozenset({".xlsx"})
 PDF_SUFFIXES: Final[frozenset[str]] = frozenset({".pdf"})
 IMAGE_SUFFIXES: Final[frozenset[str]] = frozenset({".jpg", ".jpeg", ".png"})
 SUPPORTED_PARSE_SUFFIXES: Final[frozenset[str]] = frozenset(
@@ -80,6 +82,7 @@ SUPPORTED_PARSE_SUFFIXES: Final[frozenset[str]] = frozenset(
     | CSV_SUFFIXES
     | JSON_SUFFIXES
     | DOCX_SUFFIXES
+    | XLSX_SUFFIXES
     | PDF_SUFFIXES
 )
 
@@ -361,6 +364,7 @@ def detect_document_type(path: Path | str) -> SourceType:
         (CSV_SUFFIXES, "csv"),
         (JSON_SUFFIXES, "json"),
         (DOCX_SUFFIXES, "docx"),
+        (XLSX_SUFFIXES, "xlsx"),
         (PDF_SUFFIXES, "pdf"),
         (IMAGE_SUFFIXES, "image"),
     )
@@ -427,6 +431,92 @@ def parse_docx_document(path: Path | str) -> str:
         if element.tag.endswith("}t") and element.text and element.text.strip()
     ]
     return "\n".join(texts)
+
+
+_XLSX_SHARED_STRINGS_PATH: Final[str] = "xl/sharedStrings.xml"
+_XLSX_WORKSHEET_PREFIX: Final[str] = "xl/worksheets/"
+
+
+def parse_xlsx_document(path: Path | str) -> str:
+    """Extract XLSX cell text with stdlib ZIP/XML parsing (no external deps)."""
+    source = Path(path)
+    _guard_readable_non_secret_file(source)
+    try:
+        with zipfile.ZipFile(source) as workbook:
+            shared_strings = _read_xlsx_shared_strings(workbook)
+            cell_values = _read_xlsx_cell_values(workbook, shared_strings)
+    except (KeyError, OSError, zipfile.BadZipFile, ElementTree.ParseError) as exc:
+        raise DocumentIngestError("could not parse xlsx document: %s" % source.name) from exc
+    return "\n".join(cell_values)
+
+
+def _xlsx_text_runs(element: ElementTree.Element) -> str:
+    """Concatenate the text of every ``<t>`` descendant of an element."""
+    parts: list[str] = []
+    for node in element.iter():
+        if node.tag.endswith("}t") and node.text:
+            parts.append(node.text)
+    return "".join(parts)
+
+
+def _xlsx_child_text(element: ElementTree.Element, local_tag_suffix: str) -> str | None:
+    """Return the text of the first direct child whose tag matches the suffix."""
+    for child in element:
+        if child.tag.endswith(local_tag_suffix):
+            return child.text
+    return None
+
+
+def _read_xlsx_shared_strings(workbook: zipfile.ZipFile) -> list[str]:
+    """Return the workbook's shared-string table, empty when the part is absent."""
+    if _XLSX_SHARED_STRINGS_PATH not in workbook.namelist():
+        return []
+    xml_bytes = workbook.read(_XLSX_SHARED_STRINGS_PATH)
+    if len(xml_bytes) > MAX_TEXT_CHARS:
+        raise DocumentIngestError("xlsx sharedStrings.xml exceeds text size limit")
+    root = ElementTree.fromstring(xml_bytes)
+    return [_xlsx_text_runs(item) for item in root if item.tag.endswith("}si")]
+
+
+def _read_xlsx_cell_values(workbook: zipfile.ZipFile, shared_strings: list[str]) -> list[str]:
+    """Extract non-empty worksheet cell values in a bounded, deterministic order."""
+    worksheet_names = sorted(
+        name
+        for name in workbook.namelist()
+        if name.startswith(_XLSX_WORKSHEET_PREFIX) and name.endswith(".xml")
+    )
+    values: list[str] = []
+    total_chars = 0
+    for worksheet_name in worksheet_names:
+        xml_bytes = workbook.read(worksheet_name)
+        if len(xml_bytes) > MAX_TEXT_CHARS:
+            raise DocumentIngestError("xlsx worksheet exceeds text size limit")
+        root = ElementTree.fromstring(xml_bytes)
+        for cell in root.iter():
+            if not cell.tag.endswith("}c"):
+                continue
+            value = _xlsx_cell_value(cell, shared_strings)
+            if not value:
+                continue
+            values.append(value)
+            total_chars += len(value)
+            if total_chars > MAX_TEXT_CHARS:
+                return values
+    return values
+
+
+def _xlsx_cell_value(cell: ElementTree.Element, shared_strings: list[str]) -> str:
+    """Resolve one worksheet cell to text, honoring the shared-string table."""
+    cell_type = cell.get("t")
+    if cell_type == "s":
+        raw_index = _xlsx_child_text(cell, "}v")
+        if raw_index is None or not raw_index.isdigit():
+            return ""
+        index = int(raw_index)
+        return shared_strings[index].strip() if 0 <= index < len(shared_strings) else ""
+    if cell_type == "inlineStr":
+        return _xlsx_text_runs(cell).strip()
+    return (_xlsx_child_text(cell, "}v") or "").strip()
 
 
 def parse_pdf_document(path: Path | str) -> str:
@@ -839,6 +929,8 @@ def _parse_by_type(path: Path, source_type: SourceType) -> str:
         return parse_json_csv_if_applicable(path)
     if source_type == "docx":
         return parse_docx_document(path)
+    if source_type == "xlsx":
+        return parse_xlsx_document(path)
     if source_type == "pdf":
         return parse_pdf_document(path)
     raise DocumentIngestError("unsupported source type: %s" % source_type)
