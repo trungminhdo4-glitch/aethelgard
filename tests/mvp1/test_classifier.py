@@ -309,7 +309,7 @@ class TestEvaluateChunk(unittest.TestCase):
     def test_evidence_is_frozen(self) -> None:
         ev = evaluate_chunk("verfahren", "NIS2-ART-21", ["x"])
         with self.assertRaises(ValidationError):
-            ev.is_compliant = True  # type: ignore[misc]
+            ev.is_compliant = True
 
     def test_score_within_schema_bounds(self) -> None:
         # Egal welcher Input, der Score muss in [0.0, 1.0] sein

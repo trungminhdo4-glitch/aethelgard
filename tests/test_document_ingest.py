@@ -70,10 +70,11 @@ def test_document_ingest_parses_txt_md_csv_json_and_docx(tmp_path: Path) -> None
         "markdown",
         "text",
     }
-    assert any("mfa" in item["mapped_controls"] for item in evidence)
-    assert any("restore_test" in item["mapped_controls"] for item in evidence)
-    assert any("supplier_management" in item["mapped_controls"] for item in evidence)
-    assert any("sbom" in item["mapped_controls"] for item in evidence)
+    mapped_controls = [cast(list[str], item["mapped_controls"]) for item in evidence]
+    assert any("mfa" in controls for controls in mapped_controls)
+    assert any("restore_test" in controls for controls in mapped_controls)
+    assert any("supplier_management" in controls for controls in mapped_controls)
+    assert any("sbom" in controls for controls in mapped_controls)
 
 
 def test_document_ingest_marks_unsupported_and_image_without_crashing(tmp_path: Path) -> None:

@@ -32,7 +32,8 @@ def test_bm25_search_returns_reason_codes_without_snippets(tmp_path: Path) -> No
 
     assert results
     assert results[0]["source_ref"] == "docs/backup.md"
-    assert "term_match:backup" in results[0]["reason_codes"]
-    assert "term_match:restore" in results[0]["reason_codes"]
+    reason_codes = cast(list[str], results[0]["reason_codes"])
+    assert "term_match:backup" in reason_codes
+    assert "term_match:restore" in reason_codes
     assert "tested quarterly" not in report_text
     assert report["model_metadata"]

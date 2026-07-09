@@ -11,13 +11,12 @@ from typing import Final
 
 PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parents[1]
 SRC_ROOT: Final[Path] = PROJECT_ROOT / "src"
-SCRIPTS_ROOT: Final[Path] = PROJECT_ROOT / "scripts"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
-if str(SCRIPTS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_ROOT))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-from check_docker_delivery import build_report as build_docker_delivery_report  # noqa: E402
+from scripts.check_docker_delivery import build_report as build_docker_delivery_report  # noqa: E402
 
 from aethelgard import __version__  # noqa: E402
 from aethelgard.audit import append_audit_entry, build_audit_entry  # noqa: E402
@@ -132,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
         status = "PILOT_READY_PAID_CONTROLLED"
     else:
         status = "NOT_READY"
-    payload = {
+    payload: dict[str, object] = {
         "status": status,
         "tool_version": __version__,
         "project_root": str(PROJECT_ROOT),
@@ -541,16 +540,23 @@ def _add_required_file_checks(checks: list[dict[str, object]]) -> None:
     )
 
 
+def _as_int(value: object) -> int:
+    """Narrow a report value to int; readiness checks must fail loud on bad shapes."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError("expected int, got %s" % type(value).__name__)
+    return value
+
+
 def _audit_smoke(out_dir: Path, eval_report: dict[str, object]) -> bool:
     ledger_path = out_dir / "audit_smoke.jsonl"
     entry = build_audit_entry(
         command="readiness",
         input_path=PROJECT_ROOT,
         output_path=out_dir,
-        document_count=int(eval_report["document_count"]),
-        parsed_count=int(eval_report["parsed_count"]),
-        failed_count=int(eval_report["failed_count"]),
-        evidence_count=int(eval_report["evidence_count"]),
+        document_count=_as_int(eval_report["document_count"]),
+        parsed_count=_as_int(eval_report["parsed_count"]),
+        failed_count=_as_int(eval_report["failed_count"]),
+        evidence_count=_as_int(eval_report["evidence_count"]),
         run_id="readiness-smoke",
         evaluation_status=str(eval_report["status"]),
         tool_version=__version__,
@@ -682,7 +688,7 @@ def _public_data_validation_is_ready() -> bool:
     return (
         report["status"] == PUBLIC_DATA_READY_STATUS
         and report["public_data_marker"] == PUBLIC_DATA_MARKER
-        and int(report["source_count"]) >= 2
+        and _as_int(report["source_count"]) >= 2
     )
 
 

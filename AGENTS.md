@@ -278,7 +278,7 @@ from aethelgard.mvp1 import (
 - **413 Tests** (Stand 2026-07-09; readiness = PILOT_PUBLIC_DATA_READY), vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped) — exakter Stand via `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q` (globale Site-Packages haben ein kaputtes `dash`-pytest-Plugin; die `.venv-fresh` ist sauber)
 - **XLSX-Ingest (2026-07-09)**: `document_ingest.parse_xlsx_document` (stdlib zipfile+ElementTree, sharedStrings+inlineStr+Zahlwerte, bounded) — Questionnaire-Excel laeuft als Evidence-Input; leere xlsx=parse_error ohne Crash, korrupte=klare Fehlermeldung, Leak im Zellinhalt wird vom Data-Gate maskiert (6 Tests).
 - **Runtime-Beweise (2026-07-09, beide REAL gelaufen)**: `scripts/fresh_install_smoke.py` → `reports/readiness/fresh_install_proof.json` **FRESH_INSTALL_READY** (Artefakt-Kopie in System-Temp, Import nachweislich aus der Kopie, 27 Outputs, 0 Leaks; Credential-Scan nur Zuweisungsform — Prosa wie die Trust-Bundle-Hygiene-Zeile ist kein Leak) + `scripts/docker_smoke.ps1` → `docker_runtime_proof.json` **DOCKER_RUNTIME_READY** (frischer `docker build`, 7 Container-Checks pass, network_none; Gotcha: haengendes Docker Desktop vorher sauber neu starten — Zombie seit Tagen ohne Backend-Prozess gibt Pipe-not-found).
-- **Data-Gate (Zwei-Klassen-PII)**: `src/aethelgard/pii_classification.py` trennt deklarierte Class-1-Firmen-Metadaten (company/security-contact/DPO/ISO-Scope) von Class-2-Dritt-PII (deny-by-default, strukturell — NIE heuristisch). CLI: `datagate validate-metadata` / `datagate guard`. In `answer_vault` additiv verdrahtet (Default `company_metadata=None` = byte-identisch). Doku: `docs/data-gate.md`. **Gotcha**: `--out` muss im Projektordner bleiben (wie alle Commands). **Bekannt**: mypy strict hat 17 VOR-BESTEHENDE Fehler (tests/scripts Typing-Strenge, keine Logikbugs) — neuer Code ist mypy-clean.
+- **Data-Gate (Zwei-Klassen-PII)**: `src/aethelgard/pii_classification.py` trennt deklarierte Class-1-Firmen-Metadaten (company/security-contact/DPO/ISO-Scope) von Class-2-Dritt-PII (deny-by-default, strukturell — NIE heuristisch). CLI: `datagate validate-metadata` / `datagate guard`. In `answer_vault` additiv verdrahtet (Default `company_metadata=None` = byte-identisch). Doku: `docs/data-gate.md`. **Gotcha**: `--out` muss im Projektordner bleiben (wie alle Commands). **Erledigt 2026-07-09**: die 17 frueheren mypy-strict-Fehler (tests/scripts Typing-Strenge) sind behoben — volle Config (`python -m mypy`, src+tests+transitiv scripts) ist gruen.
 - Externe IO (Dateisystem, pypdf) zu 100 % gemockt via `unittest.mock`
 - AAA-Pattern (Arrange, Act, Assert)
 - Test-Klassen (document_parser): `TestComplianceEvidenceSchema`,
@@ -437,7 +437,7 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
 | Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-07-01 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy src` gruen (39 Source-Dateien) | 2026-07-01 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy` (volle Config src+tests+transitiv scripts, 97 Dateien) gruen — 0 Fehler | 2026-07-09 |
 | Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)

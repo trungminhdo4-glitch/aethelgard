@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from aethelgard.nis2_controls import (
     COVERAGE_MISSING,
@@ -53,7 +54,8 @@ def test_build_control_coverage_uses_metadata_only() -> None:
     ]
 
     coverage = build_control_coverage(documents)
-    controls = {str(control["control_id"]): control for control in coverage["controls"]}
+    coverage_controls = cast(list[dict[str, object]], coverage["controls"])
+    controls = {str(control["control_id"]): control for control in coverage_controls}
 
     assert controls["nis2_art_21_2_a"]["status"] == COVERAGE_STRONG
     assert controls["nis2_art_21_2_d"]["status"] == COVERAGE_REVIEW

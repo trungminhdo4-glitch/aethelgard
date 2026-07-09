@@ -58,7 +58,7 @@ class TestComplianceEvidenceSchema(unittest.TestCase):
             source_citation="negativ",
         )
         with self.assertRaises(ValidationError):
-            evidence.is_compliant = True  # type: ignore[misc]
+            evidence.is_compliant = True
 
     def test_extra_fields_forbidden(self) -> None:
         with self.assertRaises(ValidationError):
