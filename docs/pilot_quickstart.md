@@ -27,6 +27,19 @@ Private lokale Outputs wie SQLite, Document Inventory und Evidence Map bleiben u
 `reports/pilot-product-demo/local_private` und werden nicht für Screenshots oder
 Outreach genutzt.
 
+## Fresh-Install-Beweis (läuft Aethelgard außerhalb des Dev-Repos?)
+
+```powershell
+python scripts/build_pilot_artifact.py --out dist/aethelgard-pilot
+python scripts/check_delivery_artifact.py --path dist/aethelgard-pilot
+python scripts/fresh_install_smoke.py
+```
+
+Der Smoke kopiert das Artefakt in einen isolierten Temp-Ordner, startet die CLI dort
+(ohne pip-Install, ohne Dev-Tree im Pfad), lässt die Demo-Pipeline laufen und scannt
+alle Outputs auf Leak-Marker. Ergebnis: `reports/readiness/fresh_install_proof.json`
+mit Status `FRESH_INSTALL_READY`.
+
 ## Docker-Status
 
 Docker runtime smoke bleibt owner-gated. Ohne explizite Freigabe nur statisch prüfen:
@@ -34,6 +47,15 @@ Docker runtime smoke bleibt owner-gated. Ohne explizite Freigabe nur statisch pr
 ```powershell
 python scripts/check_docker_delivery.py --out reports/readiness/docker_delivery.json
 ```
+
+Mit Freigabe + laufendem Docker Desktop ist der echte Runtime-Beweis:
+
+```powershell
+powershell -File scripts/docker_smoke.ps1
+```
+
+(baut das Image frisch, fährt Container-Smokes über CLI/Demo/Doctor/Support-Bundle
+und schreibt `reports/readiness/docker_runtime_proof.json`).
 
 ## Landingpage und Demo
 
