@@ -1,0 +1,17 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "name": "aethelgard-lab",
+      "version": "1.0"
+    },
+    "properties": [
+      {"name": "sbom-status", "value": "documented"},
+      {"name": "review", "value": "reviewed monthly"}
+    ]
+  },
+  "components": []
+}

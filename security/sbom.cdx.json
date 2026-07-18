@@ -1,0 +1,30 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:pypi/aethelgard@0.1.0",
+      "name": "aethelgard",
+      "version": "0.1.0",
+      "licenses": [{"license": {"name": "Proprietary"}}]
+    },
+    "properties": [
+      {"name": "aethelgard:inventory-source", "value": "requirements-pilot.lock and installed metadata 2026-07-14"},
+      {"name": "aethelgard:vulnerability-scan", "value": "not-run-no-network-approval"}
+    ]
+  },
+  "components": [
+    {"type": "library", "bom-ref": "pkg:pypi/annotated-types@0.7.0", "name": "annotated-types", "version": "0.7.0", "purl": "pkg:pypi/annotated-types@0.7.0"},
+    {"type": "library", "bom-ref": "pkg:pypi/pydantic@2.13.4", "name": "pydantic", "version": "2.13.4", "purl": "pkg:pypi/pydantic@2.13.4", "licenses": [{"license": {"id": "MIT"}}]},
+    {"type": "library", "bom-ref": "pkg:pypi/pydantic-core@2.46.4", "name": "pydantic-core", "version": "2.46.4", "purl": "pkg:pypi/pydantic-core@2.46.4", "licenses": [{"license": {"id": "MIT"}}]},
+    {"type": "library", "bom-ref": "pkg:pypi/pypdf@6.14.2", "name": "pypdf", "version": "6.14.2", "purl": "pkg:pypi/pypdf@6.14.2", "scope": "optional", "licenses": [{"license": {"id": "BSD-3-Clause"}}]},
+    {"type": "library", "bom-ref": "pkg:pypi/typing-extensions@4.15.0", "name": "typing-extensions", "version": "4.15.0", "purl": "pkg:pypi/typing-extensions@4.15.0", "licenses": [{"license": {"id": "PSF-2.0"}}]},
+    {"type": "library", "bom-ref": "pkg:pypi/typing-inspection@0.4.2", "name": "typing-inspection", "version": "0.4.2", "purl": "pkg:pypi/typing-inspection@0.4.2", "licenses": [{"license": {"id": "MIT"}}]}
+  ],
+  "dependencies": [
+    {"ref": "pkg:pypi/aethelgard@0.1.0", "dependsOn": ["pkg:pypi/pydantic@2.13.4", "pkg:pypi/pypdf@6.14.2"]},
+    {"ref": "pkg:pypi/pydantic@2.13.4", "dependsOn": ["pkg:pypi/annotated-types@0.7.0", "pkg:pypi/pydantic-core@2.46.4", "pkg:pypi/typing-extensions@4.15.0", "pkg:pypi/typing-inspection@0.4.2"]}
+  ]
+}

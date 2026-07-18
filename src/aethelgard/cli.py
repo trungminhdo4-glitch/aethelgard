@@ -85,6 +85,13 @@ from aethelgard.pilot_product import (
     run_pilot_product_slice,
 )
 from aethelgard.public_data import PublicDataError, validate_public_data_manifest
+from aethelgard.public_evidence import (
+    ExecutionContext,
+    PublicEvidenceError,
+    apply_public_evidence_review,
+    export_public_evidence_trust_bundle,
+    run_public_evidence_benchmark,
+)
 from aethelgard.questionnaire import QUESTIONNAIRE_JSON_NAME, QuestionnaireError, run_questionnaire
 from aethelgard.redaction_preflight import (
     build_skipped_preflight_report,
@@ -114,6 +121,7 @@ ML_ERROR_EXIT_CODE: Final[int] = EXIT_ML_ERROR
 DELIVERY_PROFILE_ERROR_EXIT_CODE: Final[int] = EXIT_DELIVERY_PROFILE_ERROR
 PILOT_PRODUCT_ERROR_EXIT_CODE: Final[int] = EXIT_PILOT_PRODUCT_ERROR
 DATAGATE_MAX_TEXT_BYTES: Final[int] = 1_000_000
+MAX_BENCHMARK_ID_CHARS: Final[int] = 64
 DEMO_PILOT_SUMMARY_NAME: Final[str] = "demo_pilot_summary.json"
 DEMO_REVIEWED_AT: Final[str] = "2026-06-30T00:00:00+00:00"
 DEMO_ACCEPTABLE_CATEGORIES: Final[frozenset[str]] = frozenset(
@@ -126,6 +134,25 @@ DEMO_ACCEPTABLE_CATEGORIES: Final[frozenset[str]] = frozenset(
         "vulnerability_management",
     }
 )
+
+
+def _bounded_benchmark_id(value: str) -> str:
+    normalized = value.strip()
+    if not 3 <= len(normalized) <= MAX_BENCHMARK_ID_CHARS:
+        raise argparse.ArgumentTypeError("identifier must contain 3 to 64 characters")
+    return normalized
+
+
+def _add_benchmark_context_arguments(
+    parser: argparse.ArgumentParser,
+    *,
+    role_choices: tuple[str, ...],
+) -> None:
+    parser.add_argument("--tenant-id", required=True, type=_bounded_benchmark_id)
+    parser.add_argument("--actor-id", required=True, type=_bounded_benchmark_id)
+    parser.add_argument("--role", required=True, choices=role_choices)
+    parser.add_argument("--offline", required=True, action="store_true")
+    parser.add_argument("--deterministic", required=True, action="store_true")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -585,6 +612,47 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output public-data validation JSON file.",
     )
 
+    benchmark_parser = subparsers.add_parser(
+        "benchmark",
+        help="Run, review, or export the offline public evidence benchmark.",
+    )
+    benchmark_subparsers = benchmark_parser.add_subparsers(
+        dest="benchmark_command",
+        required=True,
+    )
+    benchmark_run_parser = benchmark_subparsers.add_parser(
+        "run",
+        help="Create source-backed candidates and provisional benchmark metrics.",
+    )
+    benchmark_run_parser.add_argument("--dataset", required=True, type=Path)
+    benchmark_run_parser.add_argument("--out", required=True, type=Path)
+    _add_benchmark_context_arguments(benchmark_run_parser, role_choices=("operator", "admin"))
+
+    benchmark_review_parser = benchmark_subparsers.add_parser(
+        "review",
+        help="Apply complete tenant-bound human review decisions.",
+    )
+    benchmark_review_parser.add_argument("--report", required=True, type=Path)
+    benchmark_review_parser.add_argument("--decisions", required=True, type=Path)
+    benchmark_review_parser.add_argument("--audit-ledger", required=True, type=Path)
+    benchmark_review_parser.add_argument("--out", required=True, type=Path)
+    _add_benchmark_context_arguments(
+        benchmark_review_parser,
+        role_choices=("reviewer", "admin"),
+    )
+
+    benchmark_export_parser = benchmark_subparsers.add_parser(
+        "export",
+        help="Export accepted findings as a controlled trust-bundle preview.",
+    )
+    benchmark_export_parser.add_argument("--reviewed-report", required=True, type=Path)
+    benchmark_export_parser.add_argument("--audit-ledger", required=True, type=Path)
+    benchmark_export_parser.add_argument("--out", required=True, type=Path)
+    _add_benchmark_context_arguments(
+        benchmark_export_parser,
+        role_choices=("auditor", "admin"),
+    )
+
     datagate_parser = subparsers.add_parser(
         "datagate",
         help="Classify declared company metadata vs third-party PII and guard shareable text.",
@@ -946,6 +1014,7 @@ def main(argv: list[str] | None = None) -> int:
         "trust-bundle",
         "sbom",
         "public-data",
+        "benchmark",
         "datagate",
         "supplier-profile",
         "delivery-profile",
@@ -970,6 +1039,7 @@ def _run_local_workflow(args: argparse.Namespace) -> int:
         "trust-bundle": _run_trust_bundle,
         "sbom": _run_sbom,
         "public-data": _run_public_data,
+        "benchmark": _run_benchmark,
         "datagate": _run_datagate,
         "supplier-profile": _run_supplier_profile,
         "delivery-profile": _run_delivery_profile,
@@ -1505,6 +1575,49 @@ def _run_public_data(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_benchmark(args: argparse.Namespace) -> int:
+    try:
+        context = ExecutionContext.model_validate(
+            {
+                "tenant_id": args.tenant_id,
+                "actor_id": args.actor_id,
+                "role": args.role,
+                "offline": args.offline,
+                "deterministic": args.deterministic,
+            }
+        )
+        output_path = _resolve_output_path(cast(Path, args.out))
+        if args.benchmark_command == "run":
+            dataset_path = _resolve_benchmark_dataset_path(cast(Path, args.dataset))
+            run_public_evidence_benchmark(dataset_path, output_path, context)
+        elif args.benchmark_command == "review":
+            audit_path = _resolve_output_path(cast(Path, args.audit_ledger), "--audit-ledger")
+            apply_public_evidence_review(
+                _resolve_output_path(cast(Path, args.report), "--report"),
+                _resolve_output_path(cast(Path, args.decisions), "--decisions"),
+                output_path,
+                audit_path,
+                context,
+            )
+        elif args.benchmark_command == "export":
+            audit_path = _resolve_output_path(cast(Path, args.audit_ledger), "--audit-ledger")
+            export_public_evidence_trust_bundle(
+                _resolve_output_path(
+                    cast(Path, args.reviewed_report),
+                    "--reviewed-report",
+                ),
+                output_path,
+                audit_path,
+                context,
+            )
+        else:
+            raise PublicEvidenceError("unknown benchmark command: %s" % args.benchmark_command)
+    except (PublicEvidenceError, ReviewApplyError, ValueError) as exc:
+        print("benchmark %s failed: %s" % (args.benchmark_command, exc), file=sys.stderr)
+        return C_SCRM_ERROR_EXIT_CODE
+    return 0
+
+
 def _run_datagate(args: argparse.Namespace) -> int:
     try:
         output_path = _resolve_output_path(cast(Path, args.out))
@@ -1761,6 +1874,18 @@ def _resolve_output_path(path: Path, label: str = "--out") -> Path:
     return resolved
 
 
+def _resolve_benchmark_dataset_path(path: Path) -> Path:
+    resolved = Path(path).resolve()
+    approved_base = (Path.cwd() / "benchmarks").resolve()
+    try:
+        resolved.relative_to(approved_base)
+    except ValueError as exc:
+        raise ReviewApplyError("--dataset must stay inside the project benchmarks folder") from exc
+    if not resolved.is_dir():
+        raise ReviewApplyError("--dataset must identify a local benchmark directory")
+    return resolved
+
+
 def _append_triage_audit(
     input_path: Path,
     output_path: Path,
@@ -1852,10 +1977,7 @@ def _build_review_rows(report: Mapping[str, Any]) -> list[dict[str, str]]:
 
 
 def _safe_review_csv_row(row: Mapping[str, str]) -> dict[str, str]:
-    return {
-        key: review_module.safe_review_csv_cell(value)
-        for key, value in row.items()
-    }
+    return {key: review_module.safe_review_csv_cell(value) for key, value in row.items()}
 
 
 def _humanize_category(category: str) -> str:

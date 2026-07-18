@@ -30,3 +30,4 @@ shareable_redacted/
 .vscode/
 *.swp
 *.bak
+!requirements-pilot.lock

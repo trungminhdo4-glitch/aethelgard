@@ -1,0 +1,154 @@
+{
+  "schema_version": "1.0",
+  "generated_on": "2026-07-14",
+  "hash_algorithm": "sha256",
+  "scope": "public-evidence-consultant-pilot-source-snapshot",
+  "git": {
+    "branch": "codex/nis2-control-coverage",
+    "starting_head": "f1286d5f9372c124ad70f229e2524d5dc821ba55"
+  },
+  "file_count": 34,
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "961f714e1ad3f2ed656968e2c935dbee3c2bd120d34a18dfd5cbb4b687bfd515"
+    },
+    {
+      "path": "AGENT_LOG.md",
+      "sha256": "7ba3595b249dd6f68b06a7c74447a5bccc75d40ef339915ffab130ef81955920"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "f40b6fe2b19e441c739925833361b197d4e7d71bf3a9f91d07b21bb69209f51d"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/expected/cases.json",
+      "sha256": "0f90c37709c66338b4a6f5752fe91a1c33808bd28f0facbe6f7ec073d0dfa485"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/generated-lab-evidence/access_review.csv",
+      "sha256": "223b166b7e0bdd437c2246c22557b6870d7c01d09543dbfcf3fea77b730af8c0"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/generated-lab-evidence/audit_trail.txt",
+      "sha256": "b9f06ace8463a9837391ed0e22d99d3f8af3ad0f21e430dd73beb9d26c29c135"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/generated-lab-evidence/backup_report.txt",
+      "sha256": "6aef89a8b77b0d1355a9b63f6f5f9a81ffd15afeb63f6506806a6323f4a7c15c"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/generated-lab-evidence/encryption_statement.txt",
+      "sha256": "10171e62378d4eb6c72c7af416c91f112cf106eb732fdb4066fbe44fc7dc067e"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/generated-lab-evidence/incident_plan.md",
+      "sha256": "ec2b2981044618d7a996210f3a2fb1cbe02f4248908b7b48b1b7ff5d939abba8"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/generated-lab-evidence/patch_report.json",
+      "sha256": "ee41c5c3cede3bced9c7bb2000bcc997f765170b776f89b4e4c4c51b3e27117a"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/generated-lab-evidence/restore_test.md",
+      "sha256": "7d03e2e237585db48512ffc2ee5cb0708b9f0cfbad169e3d68dd0520878bcc74"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/generated-lab-evidence/risk_register.csv",
+      "sha256": "88e85f4130606cab2a096a0d55d90d31fc40acf59889af897276e8a1004a3c72"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/generated-lab-evidence/sbom.cdx.json",
+      "sha256": "70fc18a2ea7b8c8f5cba3c66df94256335687002f3f6141496eeb41dfd6e63d6"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/generated-lab-evidence/supplier_review.md",
+      "sha256": "32b83cb41a80835ce6165f27b18a1e76c9ec2291b6371d26659744bb61f69347"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/licenses/source_register.csv",
+      "sha256": "8f26b7643e38035ccc02b3495025b9eeb84f0aec6da01c1aa7018a9960af09c2"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/manifest.json",
+      "sha256": "69fe87b74082f3bf489b7695182a9479d2bc619e184a383272f6cddd65619ce5"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/README.md",
+      "sha256": "60e432671e116aaccea5572c9ba9aace2ca5e67855c924d342a1880e3b4f3ba7"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/results/README.md",
+      "sha256": "df8afaedac915438b703349078c529afaf06673b03dea1bc436c431f003beb44"
+    },
+    {
+      "path": "benchmarks/public-evidence-v1/results/reproducibility.json",
+      "sha256": "ec3a45ba075adc5c4c10df86c721483bcfe75df91221ec3307c9026665b5c391"
+    },
+    {
+      "path": "docs/file-network-access-matrix.md",
+      "sha256": "fb9ac7174b238f5166f3f4e39e4c67f3b69de63f681b51a8d419d3ccd15bda61"
+    },
+    {
+      "path": "docs/known-limitations.md",
+      "sha256": "409199b2bb69dc2568a302b60d98f0a90cbafaa8ff14aae009f4b791e46bc7d2"
+    },
+    {
+      "path": "docs/offline-operation.md",
+      "sha256": "afa229297da4c0c357589709b0b0871d631639b31b73a9b5e7e895229835acae"
+    },
+    {
+      "path": "docs/pilot-security-checklist.md",
+      "sha256": "3a32a96a5dac175ccb9af031f93749ea99e8d0ddd13e06129b81aedf553ec314"
+    },
+    {
+      "path": "docs/public-evidence-data-flow.md",
+      "sha256": "8642b2b5b58b97a8f3e3aab414641360f2902df3ea20035b8be4af9e9bb3f8ad"
+    },
+    {
+      "path": "docs/public-evidence-validation.md",
+      "sha256": "ce3b525be83954811230d0612e903918eb7e140f988cc830ab35b3b7fed001bf"
+    },
+    {
+      "path": "docs/threat-model.md",
+      "sha256": "587dc6d2ffbe74bac71b76c45609a132359ccf3bf287822d9bb3a2a77b1ef0e5"
+    },
+    {
+      "path": "README.md",
+      "sha256": "e411e0f611563ae01b3459082baeb231ec88dfc6b5ee53b50f72bae6d061f478"
+    },
+    {
+      "path": "requirements-pilot.lock",
+      "sha256": "e1f1d7797904ba3076eba190cb74d701bac26dc531df94321320e9447a122a8a"
+    },
+    {
+      "path": "SECURITY.md",
+      "sha256": "9363a10d599a9121ceea6af484e4fa2ee11ca3abe4ca8105572628eb6f421db8"
+    },
+    {
+      "path": "security/dependency-licenses.csv",
+      "sha256": "11260a3c6b76e46f1ca52f74c93404c99ccbfc55e97ccc65ec05a5261f0f1b03"
+    },
+    {
+      "path": "security/sbom.cdx.json",
+      "sha256": "c00442f8ac6b0fdfd8f4a123f9df0952d71d4b331dd7e6871a49f259e84a9575"
+    },
+    {
+      "path": "src/aethelgard/cli.py",
+      "sha256": "9e1222fc5c9f6084f97ac1cf14bfc08d63e6eeda36a1c07692e5c61cb92d4628"
+    },
+    {
+      "path": "src/aethelgard/public_evidence.py",
+      "sha256": "2c1fecd2d8b9dfc982ba0c24b71653b7fc195653187345f937cb7dbf7cee484b"
+    },
+    {
+      "path": "tests/test_public_evidence.py",
+      "sha256": "e4d9f811f9a3d5c6b8d9f80f6a75248e6ee842e51c3a210bb6fc7df17ffec836"
+    }
+  ],
+  "limitations": [
+    "This manifest deliberately does not hash itself.",
+    "This is an unsigned working-tree snapshot, not signed release provenance.",
+    "The starting HEAD identifies the verified baseline; the listed file hashes identify the resulting public-evidence change set."
+  ]
+}

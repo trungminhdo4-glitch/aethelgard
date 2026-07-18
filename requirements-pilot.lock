@@ -1,0 +1,14 @@
+# Verified local consultant-pilot environment snapshot (2026-07-14).
+# Install hashes are not pinned; reproduce from an owner-approved wheel cache.
+annotated-types==0.7.0
+pydantic==2.13.4
+pydantic-core==2.46.4
+typing-extensions==4.15.0
+typing-inspection==0.4.2
+pypdf==6.14.2
+
+# Validation-only dependencies
+mypy==2.1.0
+pytest==9.1.1
+pytest-cov==7.1.0
+ruff==0.15.20

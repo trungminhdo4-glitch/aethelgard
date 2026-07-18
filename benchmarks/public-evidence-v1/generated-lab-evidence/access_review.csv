@@ -1,0 +1,3 @@
+control,status,team,frequency,implementation
+access review,reviewed,security team,quarterly,implemented
+mfa,implemented,identity team,monthly,reviewed

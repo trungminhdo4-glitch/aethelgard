@@ -1,0 +1,12 @@
+package,version,scope,declared_license,verification,status,owner_action
+aethelgard,0.1.0,application,Proprietary,pyproject.toml,declared,Decide closed/source-available/open-source model before release
+annotated-types,0.7.0,runtime,UNKNOWN,Installed package metadata did not declare a license,owner_gate,Verify upstream license text before distribution
+pydantic,2.13.4,runtime,MIT,Installed package metadata 2026-07-14,verified_metadata,Retain notices in distributed artifact
+pydantic-core,2.46.4,runtime,MIT,Installed package metadata 2026-07-14,verified_metadata,Retain notices in distributed artifact
+typing-extensions,4.15.0,runtime,PSF-2.0,Installed package metadata 2026-07-14,verified_metadata,Retain notices in distributed artifact
+typing-inspection,0.4.2,runtime,MIT,Installed package metadata 2026-07-14,verified_metadata,Retain notices in distributed artifact
+pypdf,6.14.2,optional-runtime,BSD-3-Clause,Installed package metadata 2026-07-14,verified_metadata,Retain notices in distributed artifact
+pytest,9.1.1,validation,MIT,Installed package metadata 2026-07-14,verified_metadata,No runtime distribution intended
+pytest-cov,7.1.0,validation,MIT,Installed package metadata 2026-07-14,verified_metadata,No runtime distribution intended
+mypy,2.1.0,validation,MIT,Installed package metadata 2026-07-14,verified_metadata,No runtime distribution intended
+ruff,0.15.20,validation,MIT,Installed package metadata 2026-07-14,verified_metadata,No runtime distribution intended

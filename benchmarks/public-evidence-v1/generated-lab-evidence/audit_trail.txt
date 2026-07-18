@@ -1,0 +1,1 @@
+Central logging owner assigned. Audit log records reviewed daily and monitoring alert tested.
