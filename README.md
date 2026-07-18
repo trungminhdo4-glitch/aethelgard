@@ -41,6 +41,9 @@ human pre-review of security documentation through local evidence triage.
 - Optional metadata-only audit ledger for CLI runs.
 - Paid-pilot ops readiness checker.
 - Static fixture safety check for secrets, PII, domains, IPs, and phone-like values.
+- Deterministic Public Evidence Validation Mode with exact source spans, categorical
+  confidence, tenant/run-bound audit lifecycle, mandatory review, and accepted-only
+  metadata export.
 
 ## Install
 
@@ -61,6 +64,27 @@ python scripts/check_public_fixtures.py
 python scripts/check_pilot_readiness.py --out reports/readiness
 python scripts/check_marketing_claims.py
 ```
+
+## Public Evidence Validation Mode
+
+Run the committed generated-lab benchmark from the repository root:
+
+```powershell
+python -m aethelgard.cli benchmark run `
+  --dataset benchmarks/public-evidence-v1 `
+  --offline --deterministic `
+  --tenant-id public-lab `
+  --actor-id local-operator `
+  --role operator `
+  --out reports/public-evidence-v1
+```
+
+The result is an evidence pre-assessment, not a compliance decision. Review and export
+are separate commands and require distinct reviewer/auditor actor labels, exact artifact
+hashes, and a valid audit lifecycle. Those labels are trusted local audit assertions,
+not authentication or production multi-tenant authorization. See
+`docs/public-evidence-validation.md`, `docs/offline-operation.md`, and
+`docs/known-limitations.md` before use.
 
 ## Demo Command
 

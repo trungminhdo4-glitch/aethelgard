@@ -82,6 +82,7 @@ src/aethelgard/
   audit.py                 # Append-only JSONL Run-Ledger (Metadaten, keine Inhalte)
   cli.py                   # CLI: triage + eval + pilot-run + demo-pilot + review-apply + C-SCRM + trust-bundle + SBOM
   public_sources.py        # Pure URL-Check-Klassifikation fuer offizielle Quellen
+  public_evidence.py       # Offline Public-Evidence-Benchmark, Review-, Audit- und Export-Gates
   redaction_preflight.py   # Lokaler Sensitive-Content-Preflight mit Maskierung; forbidden_binary (DB/Archiv/Key/>25MB) = block
   review.py                # Human-Review-Import, reviewed reports, review summary
   triage.py                # Report-, Quality-, Calibration- und Evaluations-Engine
@@ -161,6 +162,7 @@ tests/mvp1/
 | `sbom.py` | Offline CycloneDX-Komponenten-Inventar und lokale Metadata-Gap-Findings | CVE/API/Netzwerk-Abfragen, rohe SBOM-Felder, SPDX-Halbsupport |
 | `supplier_profile.py` | Supplier-Cascade-Contract mit Referenzen zu Evidence/Questionnaire/SBOM/Risk | Raw Notes, private Pfade, unbekannte Felder, Compliance-Claims |
 | `delivery_profile.py` | Lokales Consultant-/Delivery-Profil normalisieren | Echte Kontakte/PII, Secrets, private Pfade, Safety-Overrides |
+| `public_evidence.py` | Deterministischer Offline-Benchmark mit exakten Fundstellen, Human Review, Hash-Chain-Audit und metadata-only Export | Netzwerk-Fallback, numerische Confidence, autonome Compliance-Claims, ungepruefte Exporte oder Authentifizierung vortaeuschen |
 | `ml_baselines/*` | Lokale Low-Compute-Such-/Label-/Dedupe-/Priorisierungs-Vorschlaege | LLMs, Embeddings, Cloud, Kundendaten im Repo, Auto-Compliance, Review-Status ueberschreiben |
 | `ml_baselines/learning_export.py` | Redigierte Review-/Learning-Signale als lokale Datei | Raw Text, Dateinamen/Pfade, Freitext-Notizen, Upload, Training, nicht-allowlistete Labels |
 
@@ -275,7 +277,7 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **413 Tests** (Stand 2026-07-09; readiness = PILOT_PUBLIC_DATA_READY), vollstaendig deterministisch (1 opt-in Netzwerk-Test standardmaessig skipped) — exakter Stand via `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q` (globale Site-Packages haben ein kaputtes `dash`-pytest-Plugin; die `.venv-fresh` ist sauber)
+- **440 Tests** (Stand 2026-07-14; 439 passed, 1 opt-in Netzwerk-Test skipped, 17 subtests; Public-Evidence-Readiness = EXPERT_REVIEW_READY), vollstaendig deterministisch — exakter Stand via `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q` (globale Site-Packages haben ein kaputtes `dash`-pytest-Plugin; die `.venv-fresh` ist sauber)
 - **XLSX-Ingest (2026-07-09)**: `document_ingest.parse_xlsx_document` (stdlib zipfile+ElementTree, sharedStrings+inlineStr+Zahlwerte, bounded) — Questionnaire-Excel laeuft als Evidence-Input; leere xlsx=parse_error ohne Crash, korrupte=klare Fehlermeldung, Leak im Zellinhalt wird vom Data-Gate maskiert (6 Tests).
 - **Runtime-Beweise (2026-07-09, beide REAL gelaufen)**: `scripts/fresh_install_smoke.py` → `reports/readiness/fresh_install_proof.json` **FRESH_INSTALL_READY** (Artefakt-Kopie in System-Temp, Import nachweislich aus der Kopie, 27 Outputs, 0 Leaks; Credential-Scan nur Zuweisungsform — Prosa wie die Trust-Bundle-Hygiene-Zeile ist kein Leak) + `scripts/docker_smoke.ps1` → `docker_runtime_proof.json` **DOCKER_RUNTIME_READY** (frischer `docker build`, 7 Container-Checks pass, network_none; Gotcha: haengendes Docker Desktop vorher sauber neu starten — Zombie seit Tagen ohne Backend-Prozess gibt Pipe-not-found).
 - **Data-Gate (Zwei-Klassen-PII)**: `src/aethelgard/pii_classification.py` trennt deklarierte Class-1-Firmen-Metadaten (company/security-contact/DPO/ISO-Scope) von Class-2-Dritt-PII (deny-by-default, strukturell — NIE heuristisch). CLI: `datagate validate-metadata` / `datagate guard`. In `answer_vault` additiv verdrahtet (Default `company_metadata=None` = byte-identisch). Doku: `docs/data-gate.md`. **Gotcha**: `--out` muss im Projektordner bleiben (wie alle Commands). **Erledigt 2026-07-09**: die 17 frueheren mypy-strict-Fehler (tests/scripts Typing-Strenge) sind behoben — volle Config (`python -m mypy`, src+tests+transitiv scripts) ist gruen.
@@ -355,6 +357,9 @@ from aethelgard.mvp1 import (
 - Pilot-Delivery-Artefakt-Tests: `test_delivery_artifact.py` prueft Blockaden fuer
   `.git`, `tests/`, `reports/`, `local_private/`, DBs, `.env`, Agent-Dateien,
   Secret-Marker und Source-Claim-Konsistenz.
+- Public-Evidence-Tests: `test_public_evidence.py` prueft mit 26 Tests Source-/
+  Lizenz-/Hash-Gates, exakte Fundstellen, deterministische Reports, Offline-Modus,
+  Human Review, Tenant-/Rollen-Trennung, Audit-Tamper-Schutz und accepted-only Export.
 
 ## Bekannte Gotchas
 
@@ -428,7 +433,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Pilot Diagnostics Support | OK: `doctor`, `support-bundle --redacted`, `pilot-product --debug`, lokale JSONL-Logs, stabile Error-Taxonomie, Privacy-Guard und `docs/pilot_support.md`; keine Telemetrie, kein Cloud-Monitoring, keine Kundendokumente/DBs im Bundle | 2026-07-01 |
 | Pilot Delivery Packaging Layer | DEV_RUNTIME_READY_NOT_CUSTOMER_CLOSED: `build_pilot_artifact.py`, `check_delivery_artifact.py`, `docs/pilot_delivery_security.md`, `docs/pilot_license_notice.md`; dev-runtime ist source-visible und nicht als geschlossenes Kundenartefakt auslieferbar | 2026-07-02 |
 | CLI Exit-Code Konsolidierung | OK: Codes 3-8 zentral in `errors.py` (EXIT_*-Konstanten), `cli.py` re-exportiert die bisherigen Alias-Namen (Testimporte stabil); `document-ingest` erstmals CLI-getestet (5 Tests via `main()`) | 2026-07-04 |
-| Tests | 372/373 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-04 |
+| Public Evidence Validation Mode | EXPERT_REVIEW_READY: offline/deterministisch, 10 projekt-erstellte Lab-Quellen, 20 vorlaeufige Referenzfaelle, 11 Findings, 0 FP/FN gegen interne Labels, exakte Source-/Span-Referenzen, Review-/Audit-/Export-Gates; keine Authentifizierung, Rechts-/Audit-Aussage oder Real-Data-Freigabe | 2026-07-14 |
+| Tests | 439/440 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-14 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (30 Dateien) | 2026-07-01 |
@@ -436,8 +442,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_PUBLIC_DATA_READY`; Docker-Runtime bleibt Owner-Gate | 2026-07-01 |
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
-| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-07-01 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy` (volle Config src+tests+transitiv scripts, 97 Dateien) gruen — 0 Fehler | 2026-07-09 |
+| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-07-14 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy` (volle Config src+tests+transitiv scripts, 99 Dateien) gruen — 0 Fehler | 2026-07-14 |
 | Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)
