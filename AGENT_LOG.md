@@ -231,3 +231,11 @@ Post-commit correction: previous run committed as e17da1c feat: harden paid pilo
 | Task | Offline Public-Evidence-Benchmark mit exakten Fundstellen, kategorischer Confidence, Human-Review-, Tenant-/Rollen-, Hash-Chain-Audit- und accepted-only Export-Gates sowie Security-/Trust-Handoff |
 | Commit | - |
 | Ergebnis | EXPERT_REVIEW_READY: Start-HEAD `f1286d5f9372c124ad70f229e2524d5dc821ba55`; 10 projekt-erstellte Lab-Quellen, 20 vorlaeufige Referenzfaelle, 11 Findings, zwei identische CLI-Laeufe (`analysis` `23a673accf8603a3bf43e78d3d9218b8448b3f92a0bb1f3ca29d1d6abd8f4d52`, `benchmark` `34186e8a90bbca2770d0824285accd81e3fcb8df5ec7d6355ceb88147329f189`); 26 fokussierte Tests und volle Suite 439 passed/1 skipped/17 subtests, Ruff, mypy strict (99 Dateien), Fixture-Safety und `pip check` gruen; 2 Read-Only-Sub-Agenten fuer unabhaengige Security-/Testluecken-Pruefung genutzt; keine neuen Dependencies, kein Netzwerk/Docker/API, kein Push/Merge/Rebase, keine `.env`, Secrets, Kundendaten, Datenbanken, Logs oder PII gelesen oder beruehrt. Authentifizierung, reale Tenant-Isolation und externe Rechts-/Norm-/Security-Validierung bleiben Owner-Gates. |
+
+### 2026-07-18 13:07 - Public-Evidence-WIP kooperativ uebernommen (Commit-Schliessung)
+| Feld | Wert |
+|---|---|
+| Agent | Claude Code (Fable 5) |
+| Task | Verwaisten codex-Stand vom 2026-07-14 (18 Dateien, 3,5 Tage unangetastet, Status EXPERT_REVIEW_READY ohne Commit) verifiziert und auf codex/nis2-control-coverage committet; Secret-Scan aller neuen Dateien sauber; einzige Aenderung: 3 Trailing-Blank-Lines getrimmt |
+| Commit | `7a88b35` (Feature: public_evidence.py, CLI benchmark, benchmarks/, security/, requirements-pilot.lock), `2cbd375` (Security-/Pilot-Doku, README/AGENTS/LOG) |
+| Ergebnis | OK: volle Suite vor UND nach Commit 439 passed/1 skipped/17 subtests; Worktree clean; kein Push/Merge (Owner-Gate); Merge-Readiness: Branch buendelt jetzt f1286d5 (mypy-strict) + Public-Evidence-Paket, bereit fuer Owner-Review |
