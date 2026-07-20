@@ -23,9 +23,12 @@ import re
 import unicodedata
 from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 from aethelgard.mvp1.schemas import ComplianceEvidence
+
+if TYPE_CHECKING:
+    from aethelgard.mvp1.streaming import TextWindow
 
 _LOGGER: Final[logging.Logger] = logging.getLogger(__name__)
 
@@ -60,6 +63,23 @@ MAX_KEYWORDS: Final[int] = 500
 
 #: Maximale Keyword-Laenge in Zeichen.
 MAX_KEYWORD_LENGTH: Final[int] = 100
+
+#: Dateigroessen-Schwelle (Bytes), ab der Textdateien im Streaming-Modus
+#: verarbeitet werden (ueberlappende Fenster statt Full-Read + Full-
+#: Normalize). Dateien bis zur Schwelle behalten exakt das bisherige
+#: Verhalten. 4 MiB liegt oberhalb aller Fixtures und weit unterhalb
+#: des 50-MB-Dateilimits (25-MB-Dokumente laufen so RAM-flach).
+STREAMING_TEXT_THRESHOLD_BYTES: Final[int] = 4 * 1024 * 1024
+
+#: Fenstergroesse des Parser-Streaming-Pfads (64 KiB Text pro Fenster).
+STREAM_WINDOW_CHARS: Final[int] = 65_536
+
+#: Minimale Fenster-Ueberlappung; effektiv gilt
+#: ``max(STREAM_WINDOW_MIN_OVERLAP, 2 * chunk_radius + STREAM_OVERLAP_MARGIN)``.
+STREAM_WINDOW_MIN_OVERLAP: Final[int] = 512
+
+#: Zusaetzliche Sicherheits-Marge der Ueberlappung ueber ``2 * chunk_radius``.
+STREAM_OVERLAP_MARGIN: Final[int] = 64
 
 #: Regex-Whitelist-Characters pro Keyword: erlaubt Buchstaben, Ziffern,
 #: Bindestrich, Unterstrich, Punkt, Komma, Klammern. Verhindert, dass
@@ -538,6 +558,10 @@ class LocalDocumentParser:
             _LOGGER.debug("Dispatching %s to PDF page-stream handler", file_path)
             return self._parse_pdf_pages(file_path)
 
+        if file_path.stat().st_size > STREAMING_TEXT_THRESHOLD_BYTES:
+            _LOGGER.info("Dispatching %s to text window-stream parser", file_path)
+            return self._parse_text_stream(file_path)
+
         text = self._read_text_safely(file_path)
         return self.parse_text(text)
 
@@ -575,11 +599,17 @@ class LocalDocumentParser:
         file_path = Path(file_path)
         self._validate_file(file_path)
 
-        _LOGGER.info("parse_and_classify: %s (%d bytes)", file_path, file_path.stat().st_size)
+        file_size = file_path.stat().st_size
+        _LOGGER.info("parse_and_classify: %s (%d bytes)", file_path, file_size)
 
         if self._is_pdf_path(file_path):
             _LOGGER.debug("Dispatching %s to PDF page-stream + classifier", file_path)
             yield from self._classify_pdf_pages(file_path)
+            return
+
+        if file_size > STREAMING_TEXT_THRESHOLD_BYTES:
+            _LOGGER.info("Dispatching %s to text window-stream classifier", file_path)
+            yield from self._classify_text_stream(file_path)
             return
 
         text = self._read_text_safely(file_path)
@@ -666,6 +696,113 @@ class LocalDocumentParser:
                 requirement_id=requirement_id,
                 keywords=list(self._keywords),
             )
+
+    @property
+    def _stream_overlap(self) -> int:
+        """Effektive Fenster-Ueberlappung des Streaming-Pfads.
+
+        Mindestens ``STREAM_WINDOW_MIN_OVERLAP``, mindestens
+        ``2 * chunk_radius + STREAM_OVERLAP_MARGIN``, damit jeder Treffer
+        im Fenster-Kern seinen vollen Kontext-Radius behaelt.
+        """
+        return max(STREAM_WINDOW_MIN_OVERLAP, 2 * self._chunk_radius + STREAM_OVERLAP_MARGIN)
+
+    def _validate_stream_geometry(self) -> int:
+        """Prueft die Fenster-Geometrie und liefert die effektive Ueberlappung.
+
+        Raises:
+            ValueError: Wenn der ``chunk_radius`` zu gross fuer ein
+                Fenster ist (Overlap wuerde das ganze Fenster fuellen).
+        """
+        overlap = self._stream_overlap
+        if overlap >= STREAM_WINDOW_CHARS:
+            raise ValueError(
+                "chunk_radius %d too large for streaming window (%d chars)"
+                % (self._chunk_radius, STREAM_WINDOW_CHARS)
+            )
+        return overlap
+
+    def _iter_window_hits(self, window: TextWindow, overlap: int) -> Iterator[tuple[str, str]]:
+        """Liefert ``(chunk, keyword)``-Treffer im besessenen Kern eines Fensters.
+
+        Der Kern reicht bis ``len(normalized) - overlap`` (Tail-Fenster: bis
+        zum Ende). Treffer im Ueberlappungsbereich emittiert das Folgefenster;
+        so bleibt die Emission ueber Fenstergrenzen hinweg verlustfrei und
+        doppelungsfrei (Ownership-Partition).
+        """
+        normalized = normalize_text(window.text)
+        if not normalized:
+            return
+        core_end = len(normalized) if window.is_tail else max(0, len(normalized) - overlap)
+        for position, keyword in locate_keyword_positions(normalized, self._keywords):
+            if position >= core_end:
+                break  # Positionen sind aufsteigend sortiert.
+            chunk = extract_chunk(normalized, position, self._chunk_radius)
+            if chunk:
+                yield chunk, keyword
+
+    def _parse_text_stream(self, file_path: Path) -> Iterator[ComplianceEvidence]:
+        """Parst grosse Textdateien fensterweise (Functional-Semantik).
+
+        Entspricht ``functional_chunk_extractor`` (``compute_confidence``
+        + ``min_confidence``-Filter + ``_derive_compliance_flag``), aber mit
+        O(window)-RAM statt O(file). Pro Fenster gilt implizit
+        ``MAX_TEXT_LENGTH`` (Fenstergroesse << Limit).
+
+        Args:
+            file_path: Pfad zur Textdatei (bereits validiert).
+
+        Yields:
+            ``ComplianceEvidence``-Instanzen, lazy pro Fenster.
+        """
+        from aethelgard.mvp1.streaming import iter_text_blocks, sliding_windows
+
+        overlap = self._validate_stream_geometry()
+        blocks = iter_text_blocks(file_path)
+        windows = sliding_windows(blocks, window_chars=STREAM_WINDOW_CHARS, overlap=overlap)
+        for window in windows:
+            for chunk, keyword in self._iter_window_hits(window, overlap):
+                score = compute_confidence(chunk, keyword, window.text)
+                if score < self._min_confidence:
+                    continue
+                requirement_id = self._requirement_map.get(
+                    keyword.lower()
+                ) or _slugify_requirement_id(keyword)
+                yield ComplianceEvidence(
+                    requirement_id=requirement_id,
+                    is_compliant=_derive_compliance_flag(chunk),
+                    confidence_score=score,
+                    source_citation=chunk,
+                )
+
+    def _classify_text_stream(self, file_path: Path) -> Iterator[ComplianceEvidence]:
+        """Klassifiziert grosse Textdateien fensterweise (Classifier-Semantik).
+
+        Entspricht ``_classify_text`` (``classifier.evaluate_chunk``), aber
+        mit O(window)-RAM statt O(file).
+
+        Args:
+            file_path: Pfad zur Textdatei (bereits validiert).
+
+        Yields:
+            ``ComplianceEvidence``-Instanzen, lazy pro Fenster.
+        """
+        from aethelgard.mvp1.classifier import evaluate_chunk
+        from aethelgard.mvp1.streaming import iter_text_blocks, sliding_windows
+
+        overlap = self._validate_stream_geometry()
+        blocks = iter_text_blocks(file_path)
+        windows = sliding_windows(blocks, window_chars=STREAM_WINDOW_CHARS, overlap=overlap)
+        for window in windows:
+            for chunk, keyword in self._iter_window_hits(window, overlap):
+                requirement_id = self._requirement_map.get(
+                    keyword.lower()
+                ) or _slugify_requirement_id(keyword)
+                yield evaluate_chunk(
+                    chunk=chunk,
+                    requirement_id=requirement_id,
+                    keywords=list(self._keywords),
+                )
 
     def _classify_pdf_pages(self, file_path: Path) -> Iterator[ComplianceEvidence]:
         """Klassifiziert Chunks in einer PDF-Datei seitenweise.

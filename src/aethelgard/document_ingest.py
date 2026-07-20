@@ -580,9 +580,7 @@ def summarize_document_deterministic(
 ) -> dict[str, object]:
     """Build a deterministic metadata-only summary for one document."""
     topic_counts = Counter(
-        topic
-        for item in evidence
-        for topic in cast(Sequence[str], item.get("detected_topics", ()))
+        topic for item in evidence for topic in cast(Sequence[str], item.get("detected_topics", ()))
     )
     return {
         "document_id": document.get("document_id", ""),
@@ -594,6 +592,8 @@ def summarize_document_deterministic(
         "detected_topics": tuple(sorted(topic_counts)),
         "top_topics": tuple(topic for topic, _count in topic_counts.most_common(5)),
         "reason": document.get("reason", ""),
+        "truncated": document.get("truncated", False),
+        "original_chars": document.get("original_chars", 0),
     }
 
 
@@ -641,9 +641,7 @@ def extract_evidence_candidates(
             "confidence": confidence,
             "status": signal["status"],
             "reason": signal["reason"],
-            "matched_terms": tuple(
-                sorted({term for terms in matches.values() for term in terms})
-            ),
+            "matched_terms": tuple(sorted({term for terms in matches.values() for term in terms})),
             "requires_human_review": signal["status"] != "covered",
         }
         if include_local_excerpts:
@@ -866,8 +864,8 @@ def _process_document(
 
     try:
         digest = compute_document_hash(path)
-        text = _parse_by_type(path, source_type)
-        text = _bounded_text(text)
+        raw_text = _parse_by_type(path, source_type)
+        text = _bounded_text(raw_text)
         if not text.strip():
             raise DocumentIngestError("parsed document contains no text")
     except (OSError, UnicodeError, DocumentIngestError) as exc:
@@ -915,6 +913,8 @@ def _process_document(
         document_id=document_id,
         text_hash=_sha256_text(_normalize_whitespace(text)),
         chunk_count=len(chunks),
+        truncated=len(raw_text) > len(text),
+        original_chars=len(raw_text),
     )
     stored_chunks = [_strip_private_chunk_text(chunk) for chunk in chunks]
     return document, stored_chunks, evidence
@@ -948,6 +948,8 @@ def _document_record(
     document_id: str | None = None,
     text_hash: str = "",
     chunk_count: int = 0,
+    truncated: bool = False,
+    original_chars: int = 0,
 ) -> dict[str, object]:
     source_path = _safe_relative(path, root)
     stable_id = document_id or _build_document_id(source_path, sha256 or reason, source_type)
@@ -961,6 +963,8 @@ def _document_record(
         "text_hash": text_hash,
         "chunk_count": chunk_count,
         "evidence_count": evidence_count,
+        "truncated": truncated,
+        "original_chars": original_chars,
     }
 
 

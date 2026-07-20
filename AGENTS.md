@@ -74,11 +74,13 @@ src/aethelgard/
     model_registry.py      # Modell-/Feature-Metadaten fuer ML-Ausgaben
     learning_export.py     # Redigierter Review-/Learning-Signal-Export, owner-gated
   mvp1/
-    __init__.py            # Public API Re-Exports (Schemas + Parser + PDF + Classifier)
+    __init__.py            # Public API Re-Exports (Schemas + Parser + PDF + Classifier + Streaming + Evaluators)
     schemas.py             # pydantic v2 Schemas (ComplianceEvidence)
-    document_parser.py     # Parser (OOP + Functional), Text + PDF-Dispatch, parse_and_classify
+    document_parser.py     # Parser (OOP + Functional), Text + PDF-Dispatch, parse_and_classify, Streaming-Threshold
     pdf_handler.py         # PDF Page-Streaming (optional pypdf)
     classifier.py          # Klassifikations-Engine (deterministische Heuristik)
+    streaming.py           # Block-Quellen (Text/PDF) + ueberlappende Fensterung (TextWindow), O(window)-RAM
+    evaluators.py          # ChunkEvaluator-Protokoll + RuleBasedEvaluator (Modus A) + run_pipeline
   audit.py                 # Append-only JSONL Run-Ledger (Metadaten, keine Inhalte)
   cli.py                   # CLI: triage + eval + pilot-run + demo-pilot + review-apply + C-SCRM + trust-bundle + SBOM
   public_sources.py        # Pure URL-Check-Klassifikation fuer offizielle Quellen
@@ -150,6 +152,8 @@ tests/mvp1/
 | `document_parser.py` | Text-Extraktion, Chunking, PDF-Dispatch | Netzwerk, NLP-Frameworks, schwere Dependencies |
 | `pdf_handler.py` | PDF Page-Streaming, Custom PDF-Exceptions | pypdf-Internals leaken, vollstaendige PDF-Inhalte laden |
 | `classifier.py` | Deterministische Heuristik, Compliance-Mapping | Mutationen, IO, externe Modelle (Stufe 1 rein Python, Stufe 2 ONNX-prep) |
+| `streaming.py` | Blockweise Textquellen (64-KiB-Bloecke), PDF-Seiten-Delegation, `sliding_windows` mit Ownership-Partition und Mini-Tail-Vermeidung | Full-Document-Load, Netzwerk, Normalisierung/Scoring (bleibt bei Parser/Evaluator) |
+| `evaluators.py` | `ChunkEvaluator`-Protokoll, `RuleBasedEvaluator` (Modus A, Ownership + sha256-Zitat-Dedupe), `run_pipeline` | API-/LLM-Aufrufe (spaetere Modi ueber dasselbe Protokoll), Rohtext-Export, Review-Status ueberschreiben |
 | `control_catalog.py` | Lokale Control-Kataloge und Cross-Map-Validierung | Rechts-/Audit-Claims, externe Quellen zur Laufzeit |
 | `evidence_store.py` | Metadata-only Evidence Records, Hashes, Control-Refs | Rohdaten/Secrets in Reports ausgeben |
 | `evidence_bridge.py` | Reviewte Findings als Evidence-Metadaten exportieren | Rohzitate, private Pfade, nicht-akzeptierte Findings uebernehmen |
@@ -208,12 +212,27 @@ from aethelgard.mvp1 import (
     # Classifier
     compute_heuristic_score,   # Pure: base + boosts - penalties, clamped
     evaluate_chunk,            # Mappt chunk -> ComplianceEvidence
+    # Streaming (grosse Dokumente)
+    TextWindow,                # frozen dataclass: window_index/start_char/end_char/text/is_tail
+    iter_text_blocks,          # Generator: 64-KiB-Bloecke, UTF-8-sicher
+    iter_pdf_blocks,           # Generator: delegiert an stream_pdf_pages
+    iter_document_blocks,      # Dispatch nach Suffix
+    sliding_windows,           # Generator: ueberlappende Fenster, Ownership-Partition
+    # Evaluators (Modus A)
+    ChunkEvaluator,            # Protocol: evaluate(window) + finalize()
+    RuleBasedEvaluator,        # Regelbasiert, sha256-Zitat-Dedupe
+    run_pipeline,              # Datei -> Fenster -> Evaluator -> Evidenzen (lazy)
     # Constants
     DEFAULT_CHUNK_RADIUS,      # 200
     DEFAULT_MIN_CONFIDENCE,    # 0.5
     MAX_PDF_PAGES,             # 10_000
     PDF_EXTENSION,             # ".pdf"
     DEFAULT_PAGE_SEPARATOR,    # "\n\n"
+    STREAMING_TEXT_THRESHOLD_BYTES,  # 4 MiB (Textdatei-Groesse, ab der der Parser fenstert)
+    STREAM_WINDOW_CHARS,       # 65_536
+    DEFAULT_BLOCK_CHARS,       # 65_536
+    DEFAULT_WINDOW_CHARS,      # 65_536
+    DEFAULT_WINDOW_OVERLAP,    # 512
     BASE_SCORE,                # 0.5
     BOOST_DELTA,               # 0.05
     BOOST_CAP,                 # 0.2
@@ -277,7 +296,7 @@ from aethelgard.mvp1 import (
 
 ## Tests
 
-- **440 Tests** (Stand 2026-07-14; 439 passed, 1 opt-in Netzwerk-Test skipped, 17 subtests; Public-Evidence-Readiness = EXPERT_REVIEW_READY), vollstaendig deterministisch — exakter Stand via `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q` (globale Site-Packages haben ein kaputtes `dash`-pytest-Plugin; die `.venv-fresh` ist sauber)
+- **484 Tests** (Stand 2026-07-20; 483 passed, 1 opt-in Netzwerk-Test skipped, 17 subtests), vollstaendig deterministisch — exakter Stand via `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q` (globale Site-Packages haben ein kaputtes `dash`-pytest-Plugin; die `.venv-fresh` ist sauber)
 - **XLSX-Ingest (2026-07-09)**: `document_ingest.parse_xlsx_document` (stdlib zipfile+ElementTree, sharedStrings+inlineStr+Zahlwerte, bounded) — Questionnaire-Excel laeuft als Evidence-Input; leere xlsx=parse_error ohne Crash, korrupte=klare Fehlermeldung, Leak im Zellinhalt wird vom Data-Gate maskiert (6 Tests).
 - **Runtime-Beweise (2026-07-09, beide REAL gelaufen)**: `scripts/fresh_install_smoke.py` → `reports/readiness/fresh_install_proof.json` **FRESH_INSTALL_READY** (Artefakt-Kopie in System-Temp, Import nachweislich aus der Kopie, 27 Outputs, 0 Leaks; Credential-Scan nur Zuweisungsform — Prosa wie die Trust-Bundle-Hygiene-Zeile ist kein Leak) + `scripts/docker_smoke.ps1` → `docker_runtime_proof.json` **DOCKER_RUNTIME_READY** (frischer `docker build`, 7 Container-Checks pass, network_none; Gotcha: haengendes Docker Desktop vorher sauber neu starten — Zombie seit Tagen ohne Backend-Prozess gibt Pipe-not-found).
 - **Data-Gate (Zwei-Klassen-PII)**: `src/aethelgard/pii_classification.py` trennt deklarierte Class-1-Firmen-Metadaten (company/security-contact/DPO/ISO-Scope) von Class-2-Dritt-PII (deny-by-default, strukturell — NIE heuristisch). CLI: `datagate validate-metadata` / `datagate guard`. In `answer_vault` additiv verdrahtet (Default `company_metadata=None` = byte-identisch). Doku: `docs/data-gate.md`. **Gotcha**: `--out` muss im Projektordner bleiben (wie alle Commands). **Erledigt 2026-07-09**: die 17 frueheren mypy-strict-Fehler (tests/scripts Typing-Strenge) sind behoben — volle Config (`python -m mypy`, src+tests+transitiv scripts) ist gruen.
@@ -360,6 +379,17 @@ from aethelgard.mvp1 import (
 - Public-Evidence-Tests: `test_public_evidence.py` prueft mit 26 Tests Source-/
   Lizenz-/Hash-Gates, exakte Fundstellen, deterministische Reports, Offline-Modus,
   Human Review, Tenant-/Rollen-Trennung, Audit-Tamper-Schutz und accepted-only Export.
+- Streaming-Tests: `tests/mvp1/test_streaming.py` (18 Tests: Block-Quellen,
+  UTF-8-Grenzen, PDF-Delegation mit Mocking-Ziel, Fenster-Geometrie,
+  Ownership-Lueckenlosigkeit, Mini-Tail-Vermeidung, Validation),
+  `tests/mvp1/test_evaluators.py` (15 Tests: Ownership ohne Doppelzaehlung,
+  sha256-Zitat-Dedupe + reset(), requirement_map, run_pipeline E2E auf tmp-Dateien),
+  `tests/mvp1/test_parser_streaming.py` (9 Tests: Threshold-Dispatch via
+  gepatchter Konstante, Stream-==Klassik-Ergebnisidentitaet fuer
+  parse_file/parse_and_classify, min_confidence-Filter, Geometrie-Fehler).
+- Truncation-Trust-Tests: `test_document_ingest.py` prueft `truncated`/
+  `original_chars` fuer uebergrosse (> MAX_TEXT_CHARS) und kleine Dokumente
+  (Inventory-Record + Summary).
 
 ## Bekannte Gotchas
 
@@ -400,6 +430,19 @@ from aethelgard.mvp1 import (
   weil `return_value` den Mock zurueckgibt).
 - **pypdf 6.x Exception-Namen**: `WrongFileTypeError`/`PermissionDeniedError`
   existieren NICHT. Stattdessen: `ParseError` und `WrongPasswordError`.
+- **Streaming-Threshold**: `parse_file`/`parse_and_classify` schalten
+  Textdateien erst oberhalb `STREAMING_TEXT_THRESHOLD_BYTES` (4 MiB) auf den
+  Fenster-Pfad um — alle bestehenden Tests (gemocktes `read_text`,
+  `st_size=1024`) laufen bewusst auf dem klassischen Pfad. Streaming-Tests
+  patchen die Konstante via `mock.patch("aethelgard.document_parser.STREAMING_TEXT_THRESHOLD_BYTES", ...)`
+  bzw. `"aethelgard.mvp1.document_parser.STREAMING_TEXT_THRESHOLD_BYTES"`.
+- **Tail-Fenster**: `sliding_windows` schlaegt Reste <= `window_chars +
+  step` dem letzten Fenster zu (kein Mini-Restfenster mit verkuerztem
+  Kontext). Tail-Fenster koennen daher groesser als `window_chars` sein —
+  Verbraucher duerfen keine exakte Fenstergroesse erwarten.
+- **Mocking-Ziel PDF-Delegation**: `streaming.iter_pdf_blocks` importiert
+  `stream_pdf_pages` lokal — Tests patchen weiterhin
+  `aethelgard.mvp1.pdf_handler.stream_pdf_pages`.
 
 ## Boy Scout Rule (siehe `conventions.md`)
 
@@ -434,7 +477,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Pilot Delivery Packaging Layer | DEV_RUNTIME_READY_NOT_CUSTOMER_CLOSED: `build_pilot_artifact.py`, `check_delivery_artifact.py`, `docs/pilot_delivery_security.md`, `docs/pilot_license_notice.md`; dev-runtime ist source-visible und nicht als geschlossenes Kundenartefakt auslieferbar | 2026-07-02 |
 | CLI Exit-Code Konsolidierung | OK: Codes 3-8 zentral in `errors.py` (EXIT_*-Konstanten), `cli.py` re-exportiert die bisherigen Alias-Namen (Testimporte stabil); `document-ingest` erstmals CLI-getestet (5 Tests via `main()`) | 2026-07-04 |
 | Public Evidence Validation Mode | EXPERT_REVIEW_READY: offline/deterministisch, 10 projekt-erstellte Lab-Quellen, 20 vorlaeufige Referenzfaelle, 11 Findings, 0 FP/FN gegen interne Labels, exakte Source-/Span-Referenzen, Review-/Audit-/Export-Gates; keine Authentifizierung, Rechts-/Audit-Aussage oder Real-Data-Freigabe | 2026-07-14 |
-| Tests | 439/440 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-14 |
+| Streaming Pipeline + Truncation Trust | OK: `mvp1/streaming.py` (Block-Quellen + Fensterung, Mini-Tail-Vermeidung), `mvp1/evaluators.py` (ChunkEvaluator-Protokoll + RuleBasedEvaluator mit sha256-Dedupe + `run_pipeline`), Parser-Threshold-Branch (Text > 4 MiB fenstert, O(window)-RAM; gemessen 25 MB -> 2,6 MB Peak, 100 % Abdeckung, 0 Positions-Diff); `document_ingest` markiert Truncation explizit (`truncated` + `original_chars` in Inventory-Record und Summary) statt still abzuschneiden | 2026-07-20 |
+| Tests | 483/484 gruen, 1 skipped opt-in Netzwerk-Test, 17 subtests | 2026-07-20 |
 | Public Eval | PILOT_READY: 17/17 Fixtures, 0 Parserfehler, 1.0 Category-Hit-Rate, 0 FP/FN | 2026-06-28 |
 | Customer-like Eval | PILOT_READY: 8/8 Fixtures, Calibration Report vorhanden, Warnungen erwartet | 2026-06-28 |
 | Fixture Safety | `python scripts/check_public_fixtures.py` gruen (30 Dateien) | 2026-07-01 |
@@ -442,8 +486,8 @@ auskommentierten Bloecke hinterlassen, keine toten Imports.
 | Paid Pilot Readiness | `python scripts/check_pilot_readiness.py --out reports/readiness` => `PILOT_PUBLIC_DATA_READY`; Docker-Runtime bleibt Owner-Gate | 2026-07-01 |
 | Outreach Demo/Eval | `reports/outreach-demo` + `reports/outreach-eval`: 8/8 Dokumente, 57 Evidenzen, 31 erwartete Warnings, Eval `PILOT_READY` | 2026-06-28 |
 | Fresh-Venv | `.[all]`, pytest, triage, eval, ruff und mypy gruen | 2026-06-27 |
-| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-07-14 |
-| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy` (volle Config src+tests+transitiv scripts, 99 Dateien) gruen — 0 Fehler | 2026-07-14 |
+| Lint | `.venv-fresh\Scripts\python.exe -m ruff check .` gruen | 2026-07-20 |
+| Mypy strict | `.venv-fresh\Scripts\python.exe -m mypy` (volle Config src+tests+transitiv scripts, 104 Dateien) gruen — 0 Fehler | 2026-07-20 |
 | Git init | vorhanden, Branch `codex/nis2-control-coverage`, kein Push ausgefuehrt | 2026-06-28 |
 
 ## Naechste Schritte (geplant, ausserhalb dieses Schritts)

@@ -10,6 +10,7 @@ from typing import cast
 from aethelgard.document_ingest import (
     DOCUMENT_INVENTORY_NAME,
     EVIDENCE_MAP_NAME,
+    MAX_TEXT_CHARS,
     detect_document_type,
     run_document_ingest,
 )
@@ -23,8 +24,7 @@ def _write_docx(path: Path, text: str) -> None:
     xml = (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-        "<w:body><w:p><w:r><w:t>%s</w:t></w:r></w:p></w:body></w:document>"
-        % text
+        "<w:body><w:p><w:r><w:t>%s</w:t></w:r></w:p></w:body></w:document>" % text
     )
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("word/document.xml", xml)
@@ -117,3 +117,40 @@ def test_document_ingest_ids_are_stable_for_same_input(tmp_path: Path) -> None:
     assert [item["evidence_id"] for item in first_evidence] == [
         item["evidence_id"] for item in second_evidence
     ]
+
+
+def test_document_ingest_marks_truncated_documents(tmp_path: Path) -> None:
+    input_dir = tmp_path / "docs"
+    input_dir.mkdir()
+    oversized = "access control is documented and reviewed quarterly by the owner. "
+    oversized *= (MAX_TEXT_CHARS // len(oversized)) + 10
+    (input_dir / "big.txt").write_text(oversized, encoding="utf-8")
+
+    report = run_document_ingest(input_dir)
+    inventory = cast(dict[str, object], report["inventory"])
+    documents = cast(list[dict[str, object]], inventory["documents"])
+    summaries = cast(list[dict[str, object]], report["summaries"])
+
+    assert len(documents) == 1
+    document = documents[0]
+    assert document["status"] == "parsed"
+    assert document["truncated"] is True
+    assert document["original_chars"] == len(oversized)
+    assert len(oversized) > MAX_TEXT_CHARS
+    assert summaries[0]["truncated"] is True
+    assert summaries[0]["original_chars"] == len(oversized)
+
+
+def test_document_ingest_marks_small_documents_not_truncated(tmp_path: Path) -> None:
+    input_dir = tmp_path / "docs"
+    input_dir.mkdir()
+    content = "Access control is documented and reviewed quarterly by the owner."
+    (input_dir / "small.txt").write_text(content, encoding="utf-8")
+
+    report = run_document_ingest(input_dir)
+    inventory = cast(dict[str, object], report["inventory"])
+    documents = cast(list[dict[str, object]], inventory["documents"])
+
+    assert len(documents) == 1
+    assert documents[0]["truncated"] is False
+    assert documents[0]["original_chars"] == len(content)
