@@ -32,16 +32,18 @@ from aethelgard.redaction_preflight import (
     write_preflight_reports,
 )
 from aethelgard.triage import DISCLAIMER
+from aethelgard.diagnostics import (
+    LOCAL_PRIVATE_DIR_NAME,
+    PILOT_READINESS_REPORT_NAME,
+    SHAREABLE_REDACTED_DIR_NAME,
+)
 
-LOCAL_PRIVATE_DIR_NAME: Final[str] = "local_private"
-SHAREABLE_REDACTED_DIR_NAME: Final[str] = "shareable_redacted"
 DEFAULT_SQLITE_NAME: Final[str] = "aethelgard.sqlite"
 DEFAULT_CASE_ID: Final[str] = "case001"
 DEFAULT_CLIENT_ID: Final[str] = "synthetic-client"
 ANSWER_LIBRARY_DEMO_NAME: Final[str] = "answer_library_demo.json"
 COVERAGE_REPORT_MD_NAME: Final[str] = "coverage_report.md"
 COVERAGE_REPORT_HTML_NAME: Final[str] = "coverage_report.html"
-PILOT_READINESS_REPORT_NAME: Final[str] = "pilot_readiness_report.json"
 REVIEW_ITEMS_CSV_NAME: Final[str] = "review_items.csv"
 QUESTIONNAIRE_DRAFT_JSON_NAME: Final[str] = "questionnaire_draft.json"
 MAX_SHAREABLE_SCAN_BYTES: Final[int] = 2_000_000
@@ -239,8 +241,7 @@ def build_pilot_product_readiness_report(
         ),
         _check(
             "questionnaire_draft_created",
-            bool(draft_answers)
-            and (shareable_dir / QUESTIONNAIRE_DRAFT_CSV_NAME).is_file(),
+            bool(draft_answers) and (shareable_dir / QUESTIONNAIRE_DRAFT_CSV_NAME).is_file(),
             "Questionnaire draft CSV is written.",
         ),
         _check(
@@ -363,8 +364,8 @@ def render_coverage_report_html(markdown: str) -> str:
     rows = "".join("<p>%s</p>" % line if line else "" for line in escaped.splitlines())
     return (
         "<!doctype html>\n"
-        "<html lang=\"en\">\n"
-        "<head><meta charset=\"utf-8\"><title>AethelGard Pilot Report</title>"
+        '<html lang="en">\n'
+        '<head><meta charset="utf-8"><title>AethelGard Pilot Report</title>'
         "<style>body{font-family:Segoe UI,Arial,sans-serif;max-width:1040px;margin:32px auto;"
         "line-height:1.45;color:#1c2430}p{margin:4px 0;white-space:pre-wrap}"
         "code{background:#eef2f5;padding:1px 4px;border-radius:3px}</style></head>\n"
