@@ -40,6 +40,8 @@ PILOT_READINESS_REPORT_NAME: Final[str] = "pilot_readiness_report.json"
 LOCAL_PRIVATE_DIR_NAME: Final[str] = "local_private"
 SHAREABLE_REDACTED_DIR_NAME: Final[str] = "shareable_redacted"
 
+_PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
+
 GIT_COMMAND_TIMEOUT_SECONDS: Final[int] = 5
 MAX_LOG_MESSAGE_CHARS: Final[int] = 400
 MAX_TECHNICAL_DETAIL_CHARS: Final[int] = 4_000
@@ -271,12 +273,12 @@ def run_doctor(workspace: Path | str, out_dir: Path | str) -> dict[str, object]:
         ),
         _doctor_check(
             "readiness_script_present",
-            "OK" if (Path("scripts") / "check_pilot_readiness.py").is_file() else "FAIL",
+            "OK" if (_PROJECT_ROOT / "scripts" / "check_pilot_readiness.py").is_file() else "FAIL",
             "Pilot readiness script is present.",
         ),
         _doctor_check(
             "marketing_claim_check_present",
-            "OK" if (Path("scripts") / "check_marketing_claims.py").is_file() else "FAIL",
+            "OK" if (_PROJECT_ROOT / "scripts" / "check_marketing_claims.py").is_file() else "FAIL",
             "Marketing claim check is present.",
         ),
         _doctor_check(
@@ -562,10 +564,9 @@ def _output_dir_is_writable(path: Path) -> bool:
 
 
 def _workspace_structure_is_ready(path: Path) -> bool:
-    return (
-        (path / "documents").is_dir()
-        and (path / "questionnaire_demo.csv").is_file()
-    ) or (path / SHAREABLE_REDACTED_DIR_NAME).is_dir()
+    return ((path / "documents").is_dir() and (path / "questionnaire_demo.csv").is_file()) or (
+        path / SHAREABLE_REDACTED_DIR_NAME
+    ).is_dir()
 
 
 def _inventory_excluded_parts() -> frozenset[str]:

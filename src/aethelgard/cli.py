@@ -112,6 +112,8 @@ from aethelgard.supplier_risk import SUPPLIER_RISK_JSON_NAME, SupplierRiskError,
 from aethelgard.triage import REPORT_JSON_NAME, run_eval, run_triage
 from aethelgard.trust_bundle import TrustBundleError, build_trust_bundle_preview
 
+_PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
+
 REVIEW_CSV_NAME: Final[str] = review_module.REVIEW_CSV_NAME
 REVIEW_CSV_COLUMNS: Final[tuple[str, ...]] = review_module.REVIEW_CSV_COLUMNS
 PREFLIGHT_BLOCK_EXIT_CODE: Final[int] = EXIT_PREFLIGHT_BLOCKED
@@ -1876,7 +1878,7 @@ def _resolve_output_path(path: Path, label: str = "--out") -> Path:
 
 def _resolve_benchmark_dataset_path(path: Path) -> Path:
     resolved = Path(path).resolve()
-    approved_base = (Path.cwd() / "benchmarks").resolve()
+    approved_base = (_PROJECT_ROOT / "benchmarks").resolve()
     try:
         resolved.relative_to(approved_base)
     except ValueError as exc:
