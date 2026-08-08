@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Final, NotRequired, TypedDict
 
 from aethelgard import __version__
 from aethelgard.ml_baselines.features import FEATURE_SCHEMA_VERSION
+from aethelgard.diagnostics import GIT_COMMAND_TIMEOUT_SECONDS, git_commit as _git_commit
 
 MODEL_REGISTRY_SCHEMA_VERSION: Final[str] = "ml-model-registry-v1"
 DEFAULT_GENERATED_AT: Final[str] = "1970-01-01T00:00:00+00:00"
-GIT_COMMAND_TIMEOUT_SECONDS: Final[int] = 5
 
 
 class ModelMetadata(TypedDict):
@@ -94,19 +93,3 @@ def _model_version(model_name: str, model_type: str) -> str:
         model_type,
     )
     return basis.replace(" ", "_")
-
-
-def _git_commit() -> str:
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            check=False,
-            capture_output=True,
-            encoding="utf-8",
-            timeout=GIT_COMMAND_TIMEOUT_SECONDS,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return ""
-    if result.returncode != 0:
-        return ""
-    return result.stdout.strip()

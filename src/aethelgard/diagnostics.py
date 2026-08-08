@@ -297,7 +297,7 @@ def run_doctor(workspace: Path | str, out_dir: Path | str) -> dict[str, object]:
     payload: dict[str, object] = {
         "status": _overall_doctor_status(checks),
         "tool_version": __version__,
-        "git_commit": _git_commit(),
+        "git_commit": git_commit(),
         "generated_at": _utc_now(),
         "workspace": _project_label(workspace_path),
         "checks": checks,
@@ -587,7 +587,7 @@ def _document_parser_basic_capability() -> bool:
     return bool(chunks) and detect_document_type(Path("sample.md")) == "markdown"
 
 
-def _git_commit() -> str:
+def git_commit() -> str:
     try:
         completed = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
