@@ -36,6 +36,7 @@ FORBIDDEN_INTERNAL_FILES = frozenset(
         "AGENT_LOG.md",
         "tests/test_berlin_target_research_docs.py",
         "tests/test_first_wave_outreach_docs.py",
+        "tests/test_outreach_docs.py",
         "docs/icp-scoring.md",
         "docs/target-selection-guide.md",
         "docs/outreach-readiness.md",
