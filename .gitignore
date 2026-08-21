@@ -9,7 +9,11 @@ venv/
 env/
 .env
 .env.*
-!.env.example
+# Workspace-only material; never include it in the public release.
+AGENTS.md
+AGENT_LOG.md
+docs/research/
+tests/test_berlin_target_research_docs.py
 .coverage
 .coverage.*
 htmlcov/

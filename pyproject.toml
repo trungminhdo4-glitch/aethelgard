@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "AethelGard MVP1 - B2B Supply Chain Security Platform (NIS-2 Compliance)"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Proprietary" }
+license = { file = "LICENSE" }
 authors = [
   { name = "AethelGard Team" },
 ]
@@ -17,6 +17,7 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Operating System :: Microsoft :: Windows",
+  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Topic :: Security",
@@ -44,7 +45,7 @@ all = [
 ]
 
 [project.urls]
-Repository = "https://example.invalid/aethelgard"
+Repository = "https://github.com/trungminhdo4-glitch/aethelgard"
 
 [tool.setuptools.packages.find]
 where = ["src"]

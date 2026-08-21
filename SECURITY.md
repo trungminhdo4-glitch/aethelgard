@@ -14,16 +14,19 @@ control-fulfilment decision.
 ## Reporting a vulnerability
 
 Do not include customer documents, credentials, private paths, database contents,
-or exploit payloads in an initial report. Until the owner establishes a public
-security mailbox, report privately through an owner-approved channel and include:
+or exploit payloads in an initial report. If GitHub private vulnerability reporting
+is enabled for this repository, use the **Security** tab and choose **Report a
+vulnerability**. If it is not enabled, contact the repository maintainers through
+an owner-configured private channel before publication; do not open a public issue
+for an undisclosed vulnerability. Include:
 
 - affected version and command;
 - minimal synthetic reproduction;
 - impact and expected boundary;
 - whether disclosure is time-sensitive.
 
-`TODO_SECURITY_CONTACT` is an owner gate. No public vulnerability intake SLA is
-claimed yet.
+The repository owner must enable and verify a private reporting channel before
+announcing a public release. No public vulnerability intake SLA is claimed yet.
 
 ## Supported security boundary
 
@@ -56,4 +59,3 @@ Before a pilot release, the owner must:
 
 No vulnerability database was queried in this run because network and external
 scanner execution were not authorized. An SBOM is inventory, not a clean scan.
-

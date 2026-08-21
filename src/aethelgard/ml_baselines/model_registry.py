@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Final, NotRequired, TypedDict
 
 from aethelgard import __version__
+from aethelgard.diagnostics import git_commit as _git_commit
 from aethelgard.ml_baselines.features import FEATURE_SCHEMA_VERSION
-from aethelgard.diagnostics import GIT_COMMAND_TIMEOUT_SECONDS, git_commit as _git_commit
 
 MODEL_REGISTRY_SCHEMA_VERSION: Final[str] = "ml-model-registry-v1"
 DEFAULT_GENERATED_AT: Final[str] = "1970-01-01T00:00:00+00:00"

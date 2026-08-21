@@ -8,6 +8,24 @@ It is not a compliance certification tool, not legal advice, not a SaaS platform
 a final NIS-2 compliance decision. The narrow product claim is: AethelGard supports fast
 human pre-review of security documentation through local evidence triage.
 
+## Open-source status
+
+The codebase is prepared for publication on GitHub under the MIT License. It is still
+an alpha project. Workspace-only instructions/logs and internal research/outreach
+material are deliberately excluded from the public release and ignored locally by
+Git. The repository deliberately does not contain a live service, telemetry, customer
+documents, credentials, or network calls in the normal local workflow.
+
+Run the local release gate with:
+
+```powershell
+python scripts/check_open_source_readiness.py
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and pull-request guidance and
+[SECURITY.md](SECURITY.md) for private vulnerability reporting. The package metadata
+contains the canonical repository URL.
+
 ## Current Capabilities
 
 - Local text parsing with bounded file and text-size limits.

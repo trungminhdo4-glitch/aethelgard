@@ -19,6 +19,11 @@ from aethelgard.answer_vault import (
     init_answer_vault,
     store_ingest_result,
 )
+from aethelgard.diagnostics import (
+    LOCAL_PRIVATE_DIR_NAME,
+    PILOT_READINESS_REPORT_NAME,
+    SHAREABLE_REDACTED_DIR_NAME,
+)
 from aethelgard.document_ingest import (
     DOCUMENT_INVENTORY_NAME,
     DOCUMENT_SUMMARIES_NAME,
@@ -32,11 +37,6 @@ from aethelgard.redaction_preflight import (
     write_preflight_reports,
 )
 from aethelgard.triage import DISCLAIMER
-from aethelgard.diagnostics import (
-    LOCAL_PRIVATE_DIR_NAME,
-    PILOT_READINESS_REPORT_NAME,
-    SHAREABLE_REDACTED_DIR_NAME,
-)
 
 DEFAULT_SQLITE_NAME: Final[str] = "aethelgard.sqlite"
 DEFAULT_CASE_ID: Final[str] = "case001"
