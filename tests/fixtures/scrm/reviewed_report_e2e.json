@@ -1,0 +1,56 @@
+{
+  "per_document": [
+    {
+      "file": "C:/Users/Example/debug.log",
+      "evidence": [
+        {
+          "category": "supplier_security",
+          "finding_id": "F-E2E-SUPPLIER",
+          "quality": "strong",
+          "quality_signals": [
+            "implemented",
+            "owner_named"
+          ],
+          "recommended_manual_check": "RAW_NOTE_SHOULD_NOT_EXPORT",
+          "review_status": "accepted",
+          "source_citation": "RAW_SNIPPET_SHOULD_NOT_EXPORT supplier review text",
+          "source_reference": "synthetic-source.md#supplier"
+        },
+        {
+          "category": "incident_reporting",
+          "finding_id": "F-E2E-INCIDENT",
+          "quality": "strong",
+          "quality_signals": [
+            "timeline",
+            "reviewed"
+          ],
+          "review_status": "reviewed",
+          "source_citation": "RAW_SNIPPET_SHOULD_NOT_EXPORT incident escalation text",
+          "source_reference": "synthetic-source.md#incident"
+        },
+        {
+          "category": "supplier_security",
+          "finding_id": "F-E2E-REJECTED",
+          "quality": "weak",
+          "quality_signals": [
+            "marketing"
+          ],
+          "review_status": "rejected",
+          "source_citation": "Rejected evidence should not be bridged.",
+          "source_reference": "synthetic-source.md#rejected"
+        },
+        {
+          "category": "access_control",
+          "finding_id": "F-E2E-OPEN",
+          "quality": "warning",
+          "quality_signals": [
+            "needs_review"
+          ],
+          "review_status": "open",
+          "source_citation": "Open evidence should not be bridged.",
+          "source_reference": "synthetic-source.md#open"
+        }
+      ]
+    }
+  ]
+}

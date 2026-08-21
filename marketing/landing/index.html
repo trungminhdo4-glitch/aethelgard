@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Aethelgard — Sicherheitsfragebögen lokal vorbereiten</title>
+    <meta
+      name="description"
+      content="Lokales Triage-Werkzeug fuer Sicherheitsfrageboegen, Evidence, Review Queue und Lueckenreport."
+    >
+    <meta name="theme-color" content="#123d31">
+    <meta name="color-scheme" content="light dark">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Aethelgard — Sicherheitsfragebögen lokal vorbereiten">
+    <meta
+      property="og:description"
+      content="Lokales Triage-Werkzeug fuer Sicherheitsfrageboegen, Evidence, Review Queue und Lueckenreport. Lokale Verarbeitung, Human Review erforderlich, keine Compliance-Garantie."
+    >
+    <meta name="twitter:card" content="summary">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#top">Zum Inhalt springen</a>
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Aethelgard Start">Aethelgard</a>
+      <nav class="nav" aria-label="Hauptnavigation">
+        <a href="#loesung">Loesung</a>
+        <a href="#demo-flow">Demo Flow</a>
+        <a href="#pilot">Pilot</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" id="top">
+        <div class="hero-visual" aria-hidden="true">
+          <div class="report-window">
+            <div class="window-bar">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="report-grid">
+              <div class="metric metric-green">
+                <strong>3</strong>
+                <span>Dokumente</span>
+              </div>
+              <div class="metric metric-gold">
+                <strong>Evidence</strong>
+                <span>gefunden</span>
+              </div>
+              <div class="metric metric-coral">
+                <strong>Review</strong>
+                <span>offen</span>
+              </div>
+            </div>
+            <div class="report-row">
+              <span class="row-label">Questionnaire Draft</span>
+              <span class="row-status">review required</span>
+            </div>
+            <div class="report-row">
+              <span class="row-label">Missing Evidence</span>
+              <span class="row-status">visible</span>
+            </div>
+            <div class="report-row">
+              <span class="row-label">Coverage Report</span>
+              <span class="row-status">local HTML</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-copy">
+          <p class="eyebrow">Lokales Pilotwerkzeug</p>
+          <h1>
+            Aethelgard bereitet Sicherheitsfragebögen lokal vor - mit Evidence,
+            Review-Queue und Lückenreport.
+          </h1>
+          <p class="lead">
+            Ein lokales Triage-Werkzeug für IT-Sicherheitsberater, externe ISBs
+            und KMU-Zulieferer: Dokumente analysieren, Nachweise finden,
+            wiederkehrende Antworten speichern und offene Punkte gezielt prüfen.
+          </p>
+          <div class="hero-actions" aria-label="Pilotkontakt">
+            <a class="button button-primary" href="#kontakt">Pilot-Demo anfragen</a>
+            <a class="button button-secondary" href="#kontakt">15-Minuten Feedback-Call</a>
+          </div>
+          <p class="hero-note">
+            Lokale Verarbeitung. Human Review erforderlich. Keine Compliance-Garantie.
+          </p>
+        </div>
+      </section>
+
+      <section class="band" id="problem">
+        <div class="section-inner two-column">
+          <div>
+            <p class="eyebrow">Problem</p>
+            <h2>Sicherheitsfragebögen kosten Zeit, bevor die eigentliche Prüfung beginnt.</h2>
+          </div>
+          <ul class="check-list">
+            <li>Sicherheitsfragebögen wiederholen sich.</li>
+            <li>Evidence liegt in Policies, PDFs, DOCX, CSVs verstreut.</li>
+            <li>Berater verlieren Zeit mit Suchen, Kopieren, Abgleichen.</li>
+            <li>Lücken werden oft erst spät sichtbar.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="band band-muted" id="loesung">
+        <div class="section-inner">
+          <p class="eyebrow">Loesung</p>
+          <h2>Ein lokaler Vorbereitungsfluss für Evidence, Antworten und offene Punkte.</h2>
+          <div class="solution-grid">
+            <div class="solution-item">Dokumente lokal einlesen</div>
+            <div class="solution-item">Evidence-Kandidaten extrahieren</div>
+            <div class="solution-item">Fragen und Controls mappen</div>
+            <div class="solution-item">Answer Vault lokal speichern</div>
+            <div class="solution-item">Draft-Antworten erzeugen</div>
+            <div class="solution-item">Review Queue und Missing Evidence Report ausgeben</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band" id="demo-flow">
+        <div class="section-inner">
+          <p class="eyebrow">Demo Flow</p>
+          <h2>Vom Beispielordner zum reviewbaren HTML-Report.</h2>
+          <div class="flow">
+            <div class="step">
+              <span>01</span>
+              <strong>Dokumente rein</strong>
+            </div>
+            <div class="step">
+              <span>02</span>
+              <strong>Evidence Map</strong>
+            </div>
+            <div class="step">
+              <span>03</span>
+              <strong>Questionnaire Draft</strong>
+            </div>
+            <div class="step">
+              <span>04</span>
+              <strong>Human Review</strong>
+            </div>
+            <div class="step">
+              <span>05</span>
+              <strong>Coverage Report</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band band-muted" id="zielgruppe">
+        <div class="section-inner two-column">
+          <div>
+            <p class="eyebrow">Fuer wen</p>
+            <h2>Gebaut für wiederkehrende Supplier-Security-Arbeit.</h2>
+          </div>
+          <div class="audience-grid">
+            <div class="audience-item">IT-Sicherheitsberater</div>
+            <div class="audience-item">vCISOs</div>
+            <div class="audience-item">externe ISBs</div>
+            <div class="audience-item">NIS2-/ISO27001-/Supplier-Security-Berater</div>
+            <div class="audience-item">KMU-Zulieferer mit vielen Sicherheitsfragebögen</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band" id="grenzen">
+        <div class="section-inner two-column">
+          <div>
+            <p class="eyebrow">Was Aethelgard nicht ist</p>
+            <h2>Der Output ist Vorbereitung, keine finale Entscheidung.</h2>
+          </div>
+          <ul class="boundary-list">
+            <li>keine Rechtsberatung</li>
+            <li>keine Compliance-Garantie</li>
+            <li>kein vollautomatischer Auditor</li>
+            <li>kein Cloud-Zwang</li>
+            <li>kein Ersatz für Human Review</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="band band-accent" id="pilot">
+        <div class="section-inner two-column">
+          <div>
+            <p class="eyebrow">Pilot-Angebot</p>
+            <h2>Erst mit redacted Demo, dann optional mit echten Daten nur nach Gate.</h2>
+          </div>
+          <div class="offer-grid">
+            <div class="offer-item">Redacted Demo mit synthetischen Beispieldaten</div>
+            <div class="offer-item">Lokaler Test ohne Cloud-Pflicht</div>
+            <div class="offer-item">Echter Datentest nur nach Privacy-/Legal-Gate</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="contact" id="kontakt">
+        <div class="section-inner contact-inner">
+          <p class="eyebrow">Kontakt</p>
+          <h2>Pilot-Demo oder 15-Minuten Feedback-Call anfragen.</h2>
+          <p>
+            Kontaktplatzhalter: <strong>TODO_CONTACT</strong>. Vor einem öffentlichen
+            Deploy durch eine echte, owner-geprüfte Kontaktadresse ersetzen.
+          </p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

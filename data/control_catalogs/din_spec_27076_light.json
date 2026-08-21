@@ -1,0 +1,117 @@
+{
+  "catalog_id": "din_spec_27076_light",
+  "title": "DIN SPEC 27076 Light Controls",
+  "version": "2026-06-29",
+  "controls": [
+    {
+      "control_id": "DIN27076-L-01",
+      "framework": "DIN_SPEC_27076_LIGHT",
+      "title": "Dienstleister- und Lieferantensteuerung",
+      "summary": "Lightweight supplier management evidence for onboarding, contractual requirements, and periodic review.",
+      "required_evidence": [
+        "supplier_list",
+        "supplier_assessment",
+        "security_requirement_record"
+      ],
+      "keywords": [
+        "dienstleister",
+        "lieferant",
+        "lieferantenbewertung",
+        "supplier",
+        "vendor",
+        "security requirement"
+      ],
+      "maps_to": [
+        "NIS2-SCRM-01"
+      ]
+    },
+    {
+      "control_id": "DIN27076-L-02",
+      "framework": "DIN_SPEC_27076_LIGHT",
+      "title": "Notfallvorsorge und Wiederherstellung",
+      "summary": "Lightweight continuity and restore evidence for critical business processes.",
+      "required_evidence": [
+        "backup_record",
+        "restore_test",
+        "emergency_plan"
+      ],
+      "keywords": [
+        "notfall",
+        "backup",
+        "restore",
+        "wiederherstellung",
+        "business continuity",
+        "recovery"
+      ],
+      "maps_to": [
+        "NIS2-SCRM-04"
+      ]
+    },
+    {
+      "control_id": "DIN27076-L-03",
+      "framework": "DIN_SPEC_27076_LIGHT",
+      "title": "Berechtigungen und Authentisierung",
+      "summary": "Lightweight access-control and authentication evidence.",
+      "required_evidence": [
+        "access_review",
+        "mfa_setting",
+        "privileged_access_check"
+      ],
+      "keywords": [
+        "berechtigung",
+        "authentisierung",
+        "mfa",
+        "access review",
+        "least privilege",
+        "privileged access"
+      ],
+      "maps_to": [
+        "NIS2-SCRM-05"
+      ]
+    },
+    {
+      "control_id": "DIN27076-L-04",
+      "framework": "DIN_SPEC_27076_LIGHT",
+      "title": "Schwachstellen und Aenderungen",
+      "summary": "Lightweight vulnerability, patch, and change evidence.",
+      "required_evidence": [
+        "patch_status",
+        "vulnerability_review",
+        "change_record"
+      ],
+      "keywords": [
+        "schwachstelle",
+        "patch",
+        "change",
+        "vulnerability",
+        "remediation",
+        "secure development"
+      ],
+      "maps_to": [
+        "NIS2-SCRM-03"
+      ]
+    },
+    {
+      "control_id": "DIN27076-L-05",
+      "framework": "DIN_SPEC_27076_LIGHT",
+      "title": "Sicherheitsvorfaelle und Eskalation",
+      "summary": "Lightweight incident-response and escalation evidence.",
+      "required_evidence": [
+        "incident_process",
+        "escalation_contact",
+        "incident_review"
+      ],
+      "keywords": [
+        "sicherheitsvorfall",
+        "incident",
+        "escalation",
+        "meldepflicht",
+        "timeline",
+        "response"
+      ],
+      "maps_to": [
+        "NIS2-SCRM-02"
+      ]
+    }
+  ]
+}

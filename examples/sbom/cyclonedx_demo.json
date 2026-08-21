@@ -1,0 +1,75 @@
+{
+  "bomFormat": "CycloneDX",
+  "dependencies": [
+    {
+      "dependsOn": [
+        "demo-component-b"
+      ],
+      "ref": "demo-component-a"
+    },
+    {
+      "dependsOn": [],
+      "ref": "demo-component-b"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "name": "Local Evidence Demo",
+      "type": "application",
+      "version": "0.1.0"
+    },
+    "supplier": {
+      "name": "Example Supplier GmbH"
+    },
+    "tools": [
+      {
+        "name": "AethelGard Offline Demo",
+        "vendor": "Example Supplier GmbH",
+        "version": "0.1.0"
+      }
+    ]
+  },
+  "specVersion": "1.5",
+  "version": 1,
+  "components": [
+    {
+      "bom-ref": "demo-component-a",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "Demo Component A",
+      "purl": "pkg:generic/demo-component-a@1.0.0",
+      "type": "library",
+      "version": "1.0.0"
+    },
+    {
+      "bom-ref": "demo-component-b",
+      "name": "Demo Component B",
+      "purl": "pkg:generic/demo-component-b@2.0.0",
+      "type": "library",
+      "version": "2.0.0"
+    },
+    {
+      "bom-ref": "demo-component-c",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "Demo Component C",
+      "type": "library"
+    }
+  ]
+}

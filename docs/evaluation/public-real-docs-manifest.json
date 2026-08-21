@@ -1,0 +1,70 @@
+{
+  "sources": [
+    {
+      "id": "eurlex_nis2_directive",
+      "name": "Directive (EU) 2022/2555 (NIS2)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2022/2555/oj/eng",
+      "publisher": "European Union / EUR-Lex",
+      "purpose": "Reference for NIS2 risk-management, incident-handling, and supply-chain-security themes.",
+      "local_file": null,
+      "commit_file": false,
+      "license_note": "Reference link only; do not commit full text unless redistribution is explicitly cleared.",
+      "expected_use": "manual download or external reference only"
+    },
+    {
+      "id": "enisa_nis2_guidance",
+      "name": "ENISA NIS2 Technical Implementation Guidance",
+      "url": "https://www.enisa.europa.eu/publications/nis2-technical-implementation-guidance",
+      "publisher": "ENISA",
+      "purpose": "Reference for technical implementation guidance and evidence-category mapping.",
+      "local_file": null,
+      "commit_file": false,
+      "license_note": "Do not commit full document unless redistribution is explicitly allowed.",
+      "expected_use": "manual download or external reference only"
+    },
+    {
+      "id": "bsi_nis2_faq",
+      "name": "BSI NIS-2 FAQ",
+      "url": "https://www.bsi.bund.de/DE/Themen/Regulierte-Wirtschaft/NIS-2-regulierte-Unternehmen/NIS-2-FAQ/NIS-2-FAQ-allgemein/FAQ-zu-NIS-2_node.html",
+      "publisher": "Bundesamt fuer Sicherheit in der Informationstechnik",
+      "purpose": "German NIS-2 implementation context and affected-organization framing.",
+      "local_file": null,
+      "commit_file": false,
+      "license_note": "Reference link only; no copied FAQ content in repository fixtures.",
+      "expected_use": "manual download or external reference only"
+    },
+    {
+      "id": "nist_csf_2",
+      "name": "NIST Cybersecurity Framework 2.0",
+      "url": "https://www.nist.gov/cyberframework",
+      "publisher": "NIST",
+      "purpose": "Cross-framework vocabulary for govern, identify, protect, detect, respond, and recover themes.",
+      "local_file": null,
+      "commit_file": false,
+      "license_note": "Public reference link only; no framework document copied into fixtures.",
+      "expected_use": "manual download or external reference only"
+    },
+    {
+      "id": "cisa_cpg",
+      "name": "CISA Cross-Sector Cybersecurity Performance Goals",
+      "url": "https://www.cisa.gov/cybersecurity-performance-goals-cpgs",
+      "publisher": "CISA",
+      "purpose": "Baseline security practice reference for small organizations and critical infrastructure.",
+      "local_file": null,
+      "commit_file": false,
+      "license_note": "Public reference link only; no full source content committed.",
+      "expected_use": "manual download or external reference only"
+    },
+    {
+      "id": "owasp_asvs",
+      "name": "OWASP Application Security Verification Standard",
+      "url": "https://owasp.org/www-project-application-security-verification-standard/",
+      "publisher": "OWASP",
+      "purpose": "Optional application-security vocabulary for access control and vulnerability-management examples.",
+      "local_file": null,
+      "commit_file": false,
+      "license_note": "Reference link only; do not copy ASVS content into repository fixtures.",
+      "expected_use": "manual download or external reference only"
+    }
+  ]
+}

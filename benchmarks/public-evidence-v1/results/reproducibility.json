@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "dataset_id": "public-evidence-v1",
+  "reference_status": "provisional_internal_reference",
+  "executed_at_date": "2026-07-14",
+  "run_id": "PEV-340df4e79fad9086",
+  "source_count": 10,
+  "case_count": 20,
+  "finding_count": 11,
+  "passed": true,
+  "run_a": {
+    "analysis_sha256": "23a673accf8603a3bf43e78d3d9218b8448b3f92a0bb1f3ca29d1d6abd8f4d52",
+    "benchmark_sha256": "34186e8a90bbca2770d0824285accd81e3fcb8df5ec7d6355ceb88147329f189"
+  },
+  "run_b": {
+    "analysis_sha256": "23a673accf8603a3bf43e78d3d9218b8448b3f92a0bb1f3ca29d1d6abd8f4d52",
+    "benchmark_sha256": "34186e8a90bbca2770d0824285accd81e3fcb8df5ec7d6355ceb88147329f189"
+  },
+  "analysis_hashes_match": true,
+  "benchmark_hashes_match": true,
+  "metrics": {
+    "control_mapping_precision": {"numerator": 11, "denominator": 11, "value": 1.0},
+    "control_mapping_recall": {"numerator": 11, "denominator": 11, "value": 1.0},
+    "correct_source_id_rate": {"numerator": 11, "denominator": 11, "value": 1.0},
+    "correct_locator_rate": {"numerator": 11, "denominator": 11, "value": 1.0},
+    "correct_confidence_category_rate": {"numerator": 20, "denominator": 20, "value": 1.0},
+    "false_positive_evidence": 0,
+    "missed_evidence": 0,
+    "unsubstantiated_findings": 0,
+    "forbidden_compliance_claims": 0,
+    "findings_without_source_reference": 0,
+    "page_accuracy": {"status": "not_measured", "reason": "no provisionally reviewed page references"},
+    "review_gate_violations": {"status": "not_measured", "reason": "covered by adversarial workflow tests"},
+    "cross_tenant_violations": {"status": "not_measured", "reason": "covered by adversarial workflow tests"}
+  },
+  "limitations": [
+    "All sources are project-created lab evidence.",
+    "All expected cases require independent expert review.",
+    "The observed values do not estimate real-world accuracy."
+  ]
+}

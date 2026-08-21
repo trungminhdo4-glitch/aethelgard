@@ -1,0 +1,17 @@
+{
+  "criticality": "high",
+  "evidence_refs": [
+    "E-RF-synthetic"
+  ],
+  "questionnaire_refs": [
+    "Q-DEMO-1",
+    "Q-DEMO-2"
+  ],
+  "relationship_type": "managed_service_provider",
+  "risk_summary_ref": "supplier_risk.json",
+  "sbom_refs": [
+    "SBOM-C-synthetic"
+  ],
+  "schema_version": "1.0",
+  "supplier_id": "SUP-SYNTH-DEMO-001"
+}

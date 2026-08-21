@@ -1,0 +1,15 @@
+{
+  "decision": "Public third-party data was not ingested in this run because the pilot slice prioritizes offline reproducibility and redistribution clarity.",
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "contains_pii": false,
+      "license_note": "Synthetic project-created fixture; no third-party public data copied.",
+      "local_path": "examples/pilot/sbom/cyclonedx_demo.json",
+      "retrieved_at": "not_applicable",
+      "sha256": "e05bac7dc0a49d8e74f6f45212f12bafe11f40fe799d1b236dbb1d448b9760b2",
+      "source_id": "synthetic-cyclonedx-demo",
+      "source_type": "synthetic_fixture"
+    }
+  ]
+}

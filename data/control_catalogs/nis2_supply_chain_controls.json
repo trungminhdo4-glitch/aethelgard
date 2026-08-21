@@ -1,0 +1,121 @@
+{
+  "catalog_id": "nis2_supply_chain_controls",
+  "title": "NIS2 Supply Chain Security Controls",
+  "version": "2026-06-29",
+  "controls": [
+    {
+      "control_id": "NIS2-SCRM-01",
+      "framework": "NIS2",
+      "title": "Supplier security governance",
+      "summary": "Supplier security expectations, ownership, onboarding, review, and contractual security requirements.",
+      "required_evidence": [
+        "supplier_security_policy",
+        "supplier_review_record",
+        "contractual_security_requirements"
+      ],
+      "keywords": [
+        "supplier security",
+        "supplier review",
+        "vendor security",
+        "third party",
+        "due diligence",
+        "onboarding",
+        "contractual security"
+      ],
+      "maps_to": [
+        "DIN27076-L-01"
+      ]
+    },
+    {
+      "control_id": "NIS2-SCRM-02",
+      "framework": "NIS2",
+      "title": "Supply chain incident handling",
+      "summary": "Supplier-related incident handling, escalation, contact paths, and reporting timelines.",
+      "required_evidence": [
+        "incident_response_procedure",
+        "supplier_escalation_path",
+        "incident_timeline_record"
+      ],
+      "keywords": [
+        "incident response",
+        "incident reporting",
+        "incident timeline",
+        "escalation",
+        "24 hours",
+        "72 hours",
+        "supplier incident"
+      ],
+      "maps_to": [
+        "DIN27076-L-05"
+      ]
+    },
+    {
+      "control_id": "NIS2-SCRM-03",
+      "framework": "NIS2",
+      "title": "Vulnerability and secure change handling",
+      "summary": "Vulnerability handling, patch expectations, secure development, and change-control evidence for supplier-facing services.",
+      "required_evidence": [
+        "vulnerability_management_procedure",
+        "patch_record",
+        "change_control_record"
+      ],
+      "keywords": [
+        "vulnerability management",
+        "patch management",
+        "security patch",
+        "remediation timeline",
+        "vulnerability disclosure",
+        "change control",
+        "secure development"
+      ],
+      "maps_to": [
+        "DIN27076-L-04"
+      ]
+    },
+    {
+      "control_id": "NIS2-SCRM-04",
+      "framework": "NIS2",
+      "title": "Continuity for supplier-dependent services",
+      "summary": "Continuity, backup, restore, disaster recovery, and crisis-management evidence for critical suppliers.",
+      "required_evidence": [
+        "business_continuity_plan",
+        "backup_restore_record",
+        "continuity_exercise_record"
+      ],
+      "keywords": [
+        "business continuity",
+        "backup restore",
+        "recovery time",
+        "continuity exercise",
+        "disaster recovery",
+        "crisis management"
+      ],
+      "maps_to": [
+        "DIN27076-L-02"
+      ]
+    },
+    {
+      "control_id": "NIS2-SCRM-05",
+      "framework": "NIS2",
+      "title": "Access and authentication for supplier paths",
+      "summary": "Access control, privileged access review, MFA, and secured communication expectations for supplier access.",
+      "required_evidence": [
+        "access_review_export",
+        "mfa_policy",
+        "privileged_access_record"
+      ],
+      "keywords": [
+        "access control",
+        "least privilege",
+        "multi-factor authentication",
+        "mfa",
+        "access review",
+        "privileged access",
+        "secure communications"
+      ],
+      "maps_to": [
+        "DIN27076-L-03"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "bom-ref": "pilot-component-a",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "Pilot Demo Component A",
+      "purl": "pkg:generic/pilot-component-a@1.0.0",
+      "type": "library",
+      "version": "1.0.0"
+    },
+    {
+      "bom-ref": "pilot-component-b",
+      "name": "Pilot Demo Component B",
+      "type": "library",
+      "version": "2.0.0"
+    },
+    {
+      "bom-ref": "pilot-component-c",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "Pilot Demo Component C",
+      "type": "library"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "name": "AethelGard Local Pilot Demo",
+      "type": "application",
+      "version": "0.1.0"
+    }
+  },
+  "specVersion": "1.5",
+  "version": 1
+}

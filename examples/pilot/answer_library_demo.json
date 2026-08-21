@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "sample_data": true,
+  "contains_customer_data": false,
+  "answers": [
+    {
+      "question_cluster": "supplier_management",
+      "canonical_question": "How do you review supplier security before onboarding a third party?",
+      "answer_de": "Synthetic baseline answer: supplier onboarding uses a documented security questionnaire, contract security requirements, and annual review evidence. Human review remains required before reuse outside this demo.",
+      "answer_en": "Synthetic baseline answer: supplier onboarding uses a documented security questionnaire, contractual security requirements, and annual review evidence. Human review remains required before reuse outside this demo.",
+      "evidence_refs": [
+        "EV-SYNTHETIC-SUPPLIER-BASELINE"
+      ],
+      "review_status": "reviewed",
+      "reviewer": "Synthetic Reviewer",
+      "reviewed_at": "2026-06-30",
+      "valid_until": "2027-06-30",
+      "confidence": 0.86,
+      "source_case_id": "baseline-demo"
+    }
+  ]
+}

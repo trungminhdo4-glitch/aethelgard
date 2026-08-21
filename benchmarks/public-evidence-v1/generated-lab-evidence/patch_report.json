@@ -1,0 +1,7 @@
+{
+  "control": "patch management",
+  "cadence": "monthly",
+  "implementation": "implemented",
+  "record": "security patch record reviewed",
+  "owner": "platform team"
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "evidence": [
+    {
+      "evidence_id": "E-supplier-review",
+      "type": "document",
+      "source_path": "synthetic_supplier_security_policy.md",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "mapped_controls": [
+        "NIS2-SCRM-01"
+      ],
+      "claims": [
+        "Supplier security reviews are performed before onboarding and repeated annually by the security owner."
+      ],
+      "validity": "current",
+      "review_required": false
+    }
+  ]
+}
