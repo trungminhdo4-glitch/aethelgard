@@ -65,7 +65,7 @@ def test_datagate_guard_preserves_declared_and_masks_incidental(
     )
     text_path = tmp_path / "answer.txt"
     text_path.write_text(
-        "Report to secops@client.example. A user wrote from john.private@gmail.com.",
+        "Report to secops@client.example. A user wrote from john.private@example.test.",
         encoding="utf-8",
     )
     out_path = tmp_path / "guarded.json"
@@ -87,7 +87,7 @@ def test_datagate_guard_preserves_declared_and_masks_incidental(
     assert exit_code == 0
     guarded_text = cast(str, report["guarded_text"])
     assert "secops@client.example" in guarded_text
-    assert "john.private@gmail.com" not in guarded_text
+    assert "john.private@example.test" not in guarded_text
     assert "[email:redacted]" in guarded_text
 
 

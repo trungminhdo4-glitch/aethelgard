@@ -48,7 +48,7 @@ def test_redaction_preflight_detects_phone_number(tmp_path: Path) -> None:
     assert report["status"] == "warn"
     assert len(findings) == 1
     assert findings[0]["line"] == 1
-    assert "+49 30 12345678" not in findings[0]["snippet"]
+    assert "+00 0000000000" not in findings[0]["snippet"]
 
 
 def test_redaction_preflight_detects_api_key_token_pattern(tmp_path: Path) -> None:
