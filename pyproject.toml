@@ -29,7 +29,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=7.4",
-  "pytest-cov>=4.1",
+  "pytest-cov>=7.1.0",
   "mypy>=1.7",
   "ruff>=0.1.0",
 ]
@@ -38,7 +38,7 @@ pdf = [
 ]
 all = [
   "pytest>=7.4",
-  "pytest-cov>=4.1",
+  "pytest-cov>=7.1.0",
   "mypy>=1.7",
   "ruff>=0.1.0",
   "pypdf==6.14.2",
