@@ -30,7 +30,7 @@ dependencies = [
 dev = [
   "pytest>=7.4",
   "pytest-cov>=4.1",
-  "mypy>=1.7",
+  "mypy>=2.3.1",
   "ruff>=0.1.0",
 ]
 pdf = [
@@ -39,7 +39,7 @@ pdf = [
 all = [
   "pytest>=7.4",
   "pytest-cov>=4.1",
-  "mypy>=1.7",
+  "mypy>=2.3.1",
   "ruff>=0.1.0",
   "pypdf==6.14.2",
 ]
