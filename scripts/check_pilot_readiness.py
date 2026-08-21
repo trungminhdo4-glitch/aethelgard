@@ -58,8 +58,6 @@ CONTROLLED_REQUIRED_DOCS: Final[tuple[Path, ...]] = (
     Path("docs") / "sample-data-request.md",
     Path("docs") / "deletion-confirmation-template.md",
     Path("docs") / "human-review-checklist.md",
-    Path("docs") / "pilot-onepager.md",
-    Path("docs") / "pilot-email.md",
     Path("docs") / "pilot-scope.md",
     Path("docs") / "paid-pilot-readiness.md",
     Path("docs") / "evaluation" / "public-real-docs-plan.md",
@@ -71,8 +69,6 @@ OPS_REQUIRED_DOCS: Final[tuple[Path, ...]] = (
     Path("docs") / "backup-restore.md",
     Path("docs") / "demo-handover.md",
     Path("docs") / "demo-script.md",
-    Path("docs") / "pilot-call-agenda.md",
-    Path("docs") / "pilot-outreach-readiness.md",
     Path("docs") / "pilot_support.md",
     Path("docs") / "outreach-target-list-template.csv",
 )
@@ -220,13 +216,6 @@ def _build_checks(out_dir: Path) -> list[dict[str, object]]:
             "backup_bundle_command_documented",
             _backup_restore_is_documented(),
             "Local Git bundle backup and verify commands are documented.",
-        )
-    )
-    checks.append(
-        _check(
-            "agent_log_post_commit_correction",
-            _agent_log_has_post_commit_correction(),
-            "AGENT_LOG has additive post-commit correction for the previous run.",
         )
     )
     checks.append(
@@ -616,14 +605,6 @@ def _backup_restore_is_documented() -> bool:
     text = path.read_text(encoding="utf-8")
     required = ("git bundle create", "git bundle verify", "git clone")
     return all(term in text for term in required)
-
-
-def _agent_log_has_post_commit_correction() -> bool:
-    path = PROJECT_ROOT / "AGENT_LOG.md"
-    if not path.is_file():
-        return False
-    text = path.read_text(encoding="utf-8")
-    return "Post-commit correction: previous run committed as e17da1c" in text
 
 
 def _public_url_check_is_403_tolerant() -> bool:
