@@ -35,6 +35,7 @@ FORBIDDEN_INTERNAL_FILES = frozenset(
         "AGENTS.md",
         "AGENT_LOG.md",
         "tests/test_berlin_target_research_docs.py",
+        "tests/test_first_wave_outreach_docs.py",
     }
 )
 FORBIDDEN_INTERNAL_NAME_MARKERS = (
