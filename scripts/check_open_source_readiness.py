@@ -36,6 +36,18 @@ FORBIDDEN_INTERNAL_FILES = frozenset(
         "AGENT_LOG.md",
         "tests/test_berlin_target_research_docs.py",
         "tests/test_first_wave_outreach_docs.py",
+        "docs/icp-scoring.md",
+        "docs/target-selection-guide.md",
+        "docs/outreach-readiness.md",
+        "docs/follow-up-sequence.md",
+        "docs/objection-handling.md",
+        "docs/pilot-email.md",
+        "docs/pilot-outreach-readiness.md",
+        "docs/pilot-call-notes-template.md",
+        "docs/pilot-call-agenda.md",
+        "docs/product-positioning.md",
+        "docs/pilot-onepager.md",
+        "docs/public-evidence-validation.md",
     }
 )
 FORBIDDEN_INTERNAL_NAME_MARKERS = (

@@ -52,8 +52,8 @@ bypass — the gate's job is to ensure nothing *undeclared* leaks, and it does.
 Concrete example — importing a reviewed answer that names the client's own security contact:
 
 - **Without company metadata (default):** `Incidents go to [email:redacted] ([phone:redacted]).`
-- **With declared company metadata:** `Incidents go to secops@client.example (+49 30 5550100).`
-  while an incidental `john.private@gmail.com` and internal IP in the same sentence are still masked.
+- **With declared company metadata:** `Incidents go to security-contact@client.example ([company phone]).`
+  while an incidental `someone.private@example.invalid` and internal IP in the same sentence are still masked.
 
 ## Why this matters for positioning
 

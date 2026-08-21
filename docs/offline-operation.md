@@ -12,7 +12,7 @@
 ## Run
 
 ```powershell
-$env:PYTHONPATH = "D:\projects\aethelgard\src"
+$env:PYTHONPATH = (Resolve-Path .\src).Path
 python -m aethelgard.cli benchmark run `
   --dataset benchmarks\public-evidence-v1 `
   --offline --deterministic `

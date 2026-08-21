@@ -101,8 +101,7 @@ The result is an evidence pre-assessment, not a compliance decision. Review and 
 are separate commands and require distinct reviewer/auditor actor labels, exact artifact
 hashes, and a valid audit lifecycle. Those labels are trusted local audit assertions,
 not authentication or production multi-tenant authorization. See
-`docs/public-evidence-validation.md`, `docs/offline-operation.md`, and
-`docs/known-limitations.md` before use.
+`docs/offline-operation.md` and `docs/known-limitations.md` before use.
 
 ## Demo Command
 

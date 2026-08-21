@@ -1,6 +1,6 @@
 # Public Evidence Validation Threat Model
 
-Status: internal threat model, 2026-07-14. This is not an independent security
+Status: public technical threat model, 2026-07-14. This is not an independent security
 assessment.
 
 ## Assets and trust boundaries
