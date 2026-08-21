@@ -44,7 +44,7 @@ def test_classify_field_declared_field_with_invalid_value_is_class2() -> None:
 
 
 def test_classify_field_phone_and_url_and_identifier_kinds() -> None:
-    assert classify_field("security_contact_phone", "+49 30 555 0100").pii_class == CLASS_1
+    assert classify_field("security_contact_phone", "+00 000 000 0000").pii_class == CLASS_1
     assert classify_field("website", "https://client.example/security").pii_class == CLASS_1
     assert classify_field("vat_id", "DE123456789").pii_class == CLASS_1
     assert classify_field("security_contact_phone", "12").pii_class == CLASS_2  # too few digits
@@ -64,7 +64,7 @@ def test_build_company_metadata_keeps_valid_and_ignores_the_rest() -> None:
         {
             "company_name": "Client GmbH",
             "security_contact_email": "secops@client.example",
-            "security_contact_phone": "+49 30 555 0100",
+            "security_contact_phone": "+00 000 000 0000",
             "dpo_name": "Jane Doe",
             "unknown_key": "value",
             "security_contact_email_typo": "x@y.example",
@@ -88,32 +88,32 @@ def test_guard_preserves_declared_contact_and_masks_incidental_pii() -> None:
     metadata = build_company_metadata(
         {
             "security_contact_email": "secops@client.example",
-            "security_contact_phone": "+49 30 555 0100",
+            "security_contact_phone": "+00 000 000 0000",
         }
     )
     body = (
-        "Incidents go to secops@client.example (+49 30 5550100). "
-        "Reported by john.private@gmail.com from 10.2.3.4."
+        "Incidents go to secops@client.example (+00 0000000000). "
+        "Reported by john.private@example.test from 10.2.3.4."
     )
     result = guard_shareable_text(body, metadata)
     assert "secops@client.example" in result.text
-    assert "+49 30 5550100" in result.text
-    assert "john.private@gmail.com" not in result.text
+    assert "+00 0000000000" in result.text
+    assert "john.private@example.test" not in result.text
     assert "[email:redacted]" in result.text
     assert "10.2.3.4" not in result.text
     assert "secops@client.example" in result.preserved
 
 
 def test_guard_matches_declared_phone_despite_spacing_differences() -> None:
-    metadata = build_company_metadata({"security_contact_phone": "+49 30 555 0100"})
-    result = guard_shareable_text("Call +49-30-5550100 for security.", metadata)
-    assert "+49-30-5550100" in result.text
+    metadata = build_company_metadata({"security_contact_phone": "+00 000 000 0000"})
+    result = guard_shareable_text("Call +00-000-000-0000 for security.", metadata)
+    assert "+00-000-000-0000" in result.text
     assert "[phone:redacted]" not in result.text
 
 
 def test_guard_default_is_byte_identical_to_canonical_masker() -> None:
     # Regression guarantee: without declared metadata the gate must not change existing output.
-    body = "Contact a@b.example or +49 30 5550100; token ghp_ABCDEFGHIJKLMNOPQRSTUVWX at 10.0.0.9"
+    body = "Contact a@b.example or +00 0000000000; token ghp_ABCDEFGHIJKLMNOPQRSTUVWX at 10.0.0.9"
     legacy = mask_sensitive_text(body) if has_sensitive_markers(body) else body
     assert guard_shareable_text(body, None).text == legacy
     assert guard_shareable_text(body, CompanyMetadata(fields={})).text == legacy
@@ -182,7 +182,7 @@ def test_answer_vault_preserves_declared_company_contact(tmp_path: Path) -> None
                         "question_cluster": "incident_response",
                         "answer_de": (
                             "Vorfaelle gehen an secops@client.example. "
-                            "Ein Nutzer meldete john.private@gmail.com."
+                            "Ein Nutzer meldete john.private@example.test."
                         ),
                         "evidence_refs": ["EV-1"],
                         "review_status": "reviewed",
@@ -201,7 +201,7 @@ def test_answer_vault_preserves_declared_company_contact(tmp_path: Path) -> None
     assert len(stored) == 1
     body = str(stored[0]["answer_de"])
     assert "secops@client.example" in body
-    assert "john.private@gmail.com" not in body
+    assert "john.private@example.test" not in body
     assert "[email:redacted]" in body
 
 

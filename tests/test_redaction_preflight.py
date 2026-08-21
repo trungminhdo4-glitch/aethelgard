@@ -40,7 +40,7 @@ def test_redaction_preflight_detects_email_and_masks_value(tmp_path: Path) -> No
 
 def test_redaction_preflight_detects_phone_number(tmp_path: Path) -> None:
     document = tmp_path / "phone.md"
-    _write_text(document, "Incident bridge phone: +49 30 12345678\n")
+    _write_text(document, "Incident bridge phone: +00 0000000000\n")
 
     report = run_redaction_preflight(tmp_path)
 

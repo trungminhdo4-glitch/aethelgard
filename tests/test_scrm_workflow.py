@@ -218,7 +218,7 @@ def test_questionnaire_reports_mask_secret_and_pii_patterns(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     sensitive_email = "reviewer" + "@" + "example.test"
-    sensitive_phone = "030" + " 12345678"
+    sensitive_phone = "000" + " 00000000"
     questions = tmp_path / "questions.csv"
     questions.write_text(
         "question_id,question\n"
