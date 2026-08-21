@@ -113,7 +113,7 @@ class TestStreamPdfPagesFileValidation(unittest.TestCase):
     def test_directory_instead_of_file_raises(self) -> None:
         # Echte Directory statt File
         with self.assertRaises(IsADirectoryError):
-            list(stream_pdf_pages(Path("D:/projects/aethelgard")))
+            list(stream_pdf_pages(Path.cwd()))
 
     def test_file_too_large_raises(self) -> None:
         # Mock mit Size > 50 MB
