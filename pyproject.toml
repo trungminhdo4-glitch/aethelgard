@@ -59,6 +59,7 @@ src = ["src", "tests"]
 select = ["E", "F", "W", "I", "B", "UP", "RUF", "SIM", "PL"]
 ignore = [
   "PLR0913",  # too many arguments - we control APIs
+  "PLR0917",  # too many positional arguments - controlled internal data flows
   "PLR0915",  # evaluation runner is intentionally linear and auditable
   "PLR2004",  # magic value - we use named constants
   "PLC0415",  # local imports are used intentionally to avoid circular imports
