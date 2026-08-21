@@ -19,8 +19,6 @@ No step in this mode contains a network client, telemetry call, upload, external
 call, or exchange connection. Raw normalized quotes remain in the private analysis
 and reviewed report. They are not copied into the approved report or evidence index.
 The audit ledger contains metadata and hashes, not document content.
-
 The flow is single-workstation and local-process only. Tenant and role values are
 mandatory workflow/audit labels; production authentication and OS-enforced tenant
 storage are not present.
-

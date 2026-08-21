@@ -48,4 +48,3 @@ Python runtime can modify the program and is outside the current integrity model
 
 Independent security review, penetration testing, privacy/legal review, and expert
 NIS-2/ISO 27001 assessment remain owner gates. Internal tests do not replace them.
-

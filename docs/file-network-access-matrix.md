@@ -12,4 +12,3 @@
 The public-evidence workflow does not read environment files, customer data,
 databases, application logs, cookies, or private configuration. It rejects
 sensitive path markers and database/log suffixes for benchmark sources.
-

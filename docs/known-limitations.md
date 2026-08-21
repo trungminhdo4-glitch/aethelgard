@@ -21,5 +21,4 @@
 - The dependency SBOM and license inventory are snapshots. No live vulnerability
   database scan was authorized or executed in this run.
 - No external legal, privacy, licensing, security, penetration, or compliance
-  opinion exists. The software must not be represented as certified or audit-ready.
-
+opinion exists. The software must not be represented as certified or audit-ready.

@@ -1,6 +1,6 @@
 # Public Evidence Validation: Consultant-Pilot Handoff
 
-Date: 2026-07-14  
+Date: 2026-07-14
 Readiness: **EXPERT_REVIEW_READY**
 
 This is an internal, reproducible engineering validation. It is not a qualified
