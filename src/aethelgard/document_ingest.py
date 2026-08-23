@@ -404,9 +404,9 @@ def parse_json_csv_if_applicable(path: Path | str) -> str:
     source = Path(path)
     source_type = detect_document_type(source)
     if source_type == "csv":
-        return _parse_csv_document(source)
+        return _parse_csv_document(source)[0]
     if source_type == "json":
-        return _parse_json_document(source)
+        return _parse_json_document(source)[0]
     raise DocumentIngestError("file is not CSV or JSON: %s" % source)
 
 
@@ -439,15 +439,20 @@ _XLSX_WORKSHEET_PREFIX: Final[str] = "xl/worksheets/"
 
 def parse_xlsx_document(path: Path | str) -> str:
     """Extract XLSX cell text with stdlib ZIP/XML parsing (no external deps)."""
+    return _parse_xlsx_document_bounded(path)[0]
+
+
+def _parse_xlsx_document_bounded(path: Path | str) -> tuple[str, bool]:
+    """Extract XLSX cell text plus a flag when bounded parsing dropped cell values."""
     source = Path(path)
     _guard_readable_non_secret_file(source)
     try:
         with zipfile.ZipFile(source) as workbook:
             shared_strings = _read_xlsx_shared_strings(workbook)
-            cell_values = _read_xlsx_cell_values(workbook, shared_strings)
+            cell_values, truncated = _read_xlsx_cell_values(workbook, shared_strings)
     except (KeyError, OSError, zipfile.BadZipFile, ElementTree.ParseError) as exc:
         raise DocumentIngestError("could not parse xlsx document: %s" % source.name) from exc
-    return "\n".join(cell_values)
+    return "\n".join(cell_values), truncated
 
 
 def _xlsx_text_runs(element: ElementTree.Element) -> str:
@@ -478,7 +483,10 @@ def _read_xlsx_shared_strings(workbook: zipfile.ZipFile) -> list[str]:
     return [_xlsx_text_runs(item) for item in root if item.tag.endswith("}si")]
 
 
-def _read_xlsx_cell_values(workbook: zipfile.ZipFile, shared_strings: list[str]) -> list[str]:
+def _read_xlsx_cell_values(
+    workbook: zipfile.ZipFile,
+    shared_strings: list[str],
+) -> tuple[list[str], bool]:
     """Extract non-empty worksheet cell values in a bounded, deterministic order."""
     worksheet_names = sorted(
         name
@@ -501,8 +509,8 @@ def _read_xlsx_cell_values(workbook: zipfile.ZipFile, shared_strings: list[str])
             values.append(value)
             total_chars += len(value)
             if total_chars > MAX_TEXT_CHARS:
-                return values
-    return values
+                return values, True
+    return values, False
 
 
 def _xlsx_cell_value(cell: ElementTree.Element, shared_strings: list[str]) -> str:
@@ -864,7 +872,7 @@ def _process_document(
 
     try:
         digest = compute_document_hash(path)
-        raw_text = _parse_by_type(path, source_type)
+        raw_text, format_truncated = _parse_by_type(path, source_type)
         text = _bounded_text(raw_text)
         if not text.strip():
             raise DocumentIngestError("parsed document contains no text")
@@ -913,26 +921,27 @@ def _process_document(
         document_id=document_id,
         text_hash=_sha256_text(_normalize_whitespace(text)),
         chunk_count=len(chunks),
-        truncated=len(raw_text) > len(text),
+        truncated=format_truncated or len(raw_text) > len(text),
         original_chars=len(raw_text),
     )
     stored_chunks = [_strip_private_chunk_text(chunk) for chunk in chunks]
     return document, stored_chunks, evidence
 
 
-def _parse_by_type(path: Path, source_type: SourceType) -> str:
-    if source_type == "text":
-        return parse_text_document(path)
-    if source_type == "markdown":
-        return parse_markdown_document(path)
-    if source_type in {"csv", "json"}:
-        return parse_json_csv_if_applicable(path)
+def _parse_by_type(path: Path, source_type: SourceType) -> tuple[str, bool]:
+    """Parse one supported document; the flag reports format-level bounded truncation."""
+    if source_type in {"text", "markdown"}:
+        return parse_text_document(path), False
+    if source_type == "csv":
+        return _parse_csv_document(path)
+    if source_type == "json":
+        return _parse_json_document(path)
     if source_type == "docx":
-        return parse_docx_document(path)
+        return parse_docx_document(path), False
     if source_type == "xlsx":
-        return parse_xlsx_document(path)
+        return _parse_xlsx_document_bounded(path)
     if source_type == "pdf":
-        return parse_pdf_document(path)
+        return parse_pdf_document(path), False
     raise DocumentIngestError("unsupported source type: %s" % source_type)
 
 
@@ -1011,13 +1020,17 @@ def _score_chunk(text: str, matches: Mapping[str, Sequence[str]]) -> dict[str, o
     }
 
 
-def _parse_csv_document(path: Path) -> str:
+def _parse_csv_document(path: Path) -> tuple[str, bool]:
     rows: list[str] = []
+    truncated = False
     with path.open(encoding="utf-8", newline="") as csv_file:
         reader = csv.reader(csv_file)
         for row_index, row in enumerate(reader, start=1):
             if row_index > MAX_CSV_ROWS:
-                break
+                truncated = True
+                continue
+            if len(row) > MAX_CSV_CELLS:
+                truncated = True
             bounded_cells = [
                 _truncate(cell.strip(), MAX_CELL_CHARS)
                 for cell in row[:MAX_CSV_CELLS]
@@ -1025,32 +1038,32 @@ def _parse_csv_document(path: Path) -> str:
             ]
             if bounded_cells:
                 rows.append(" | ".join(bounded_cells))
-    return "\n".join(rows)
+    return "\n".join(rows), truncated
 
 
-def _parse_json_document(path: Path) -> str:
+def _parse_json_document(path: Path) -> tuple[str, bool]:
     payload = json.loads(_read_bounded_bytes(path).decode("utf-8"))
     scalars: list[str] = []
-    _collect_json_scalars(payload, scalars)
-    return "\n".join(scalars[:MAX_JSON_SCALARS])
+    truncated = _collect_json_scalars(payload, scalars)
+    return "\n".join(scalars), truncated
 
 
-def _collect_json_scalars(value: object, scalars: list[str]) -> None:
+def _collect_json_scalars(value: object, scalars: list[str]) -> bool:
     if len(scalars) >= MAX_JSON_SCALARS:
-        return
+        return True
     if isinstance(value, Mapping):
         for key in sorted(value, key=str):
+            if len(scalars) >= MAX_JSON_SCALARS:
+                return True
             scalars.append(_truncate(str(key), MAX_CELL_CHARS))
-            _collect_json_scalars(value[key], scalars)
-            if len(scalars) >= MAX_JSON_SCALARS:
-                break
-    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        for item in value:
-            _collect_json_scalars(item, scalars)
-            if len(scalars) >= MAX_JSON_SCALARS:
-                break
-    elif value is not None:
+            if _collect_json_scalars(value[key], scalars):
+                return True
+        return False
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return any(_collect_json_scalars(item, scalars) for item in value)
+    if value is not None:
         scalars.append(_truncate(str(value), MAX_CELL_CHARS))
+    return False
 
 
 def _read_bounded_bytes(path: Path) -> bytes:

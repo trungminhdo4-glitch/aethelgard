@@ -100,6 +100,26 @@ def test_run_document_ingest_parses_xlsx_and_maps_evidence(tmp_path: Path) -> No
     assert len(documents) == 1
     assert documents[0]["source_type"] == "xlsx"
     assert documents[0]["status"] == "parsed"
+    assert documents[0]["truncated"] is False
+
+
+def test_run_document_ingest_flags_oversized_xlsx_as_truncated(tmp_path: Path) -> None:
+    input_dir = tmp_path / "docs"
+    input_dir.mkdir()
+    long_value = "access control reviewed quarterly by the owner " * 20
+    _write_shared_string_xlsx(
+        input_dir / "big_questionnaire.xlsx",
+        [["Control", "Response"]] + [[f"row {index}", long_value] for index in range(1, 1300)],
+    )
+
+    report = run_document_ingest(input_dir)
+    inventory = cast(dict[str, object], report["inventory"])
+    documents = cast(list[dict[str, object]], inventory["documents"])
+    summaries = cast(list[dict[str, object]], report["summaries"])
+
+    assert documents[0]["status"] == "parsed"
+    assert documents[0]["truncated"] is True
+    assert summaries[0]["truncated"] is True
 
 
 def test_empty_xlsx_does_not_crash(tmp_path: Path) -> None:
