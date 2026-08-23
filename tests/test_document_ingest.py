@@ -154,3 +154,87 @@ def test_document_ingest_marks_small_documents_not_truncated(tmp_path: Path) -> 
     assert len(documents) == 1
     assert documents[0]["truncated"] is False
     assert documents[0]["original_chars"] == len(content)
+
+
+def _write_csv_with_total_lines(path: Path, total_lines: int) -> None:
+    lines = ["topic,detail"]
+    lines.extend(f"filler_{index},no security content {index}" for index in range(1, total_lines))
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def test_document_ingest_marks_truncated_csv_beyond_row_cap(tmp_path: Path) -> None:
+    input_dir = tmp_path / "docs"
+    input_dir.mkdir()
+    export = input_dir / "export.csv"
+    _write_csv_with_total_lines(export, total_lines=320)
+
+    report = run_document_ingest(input_dir)
+    inventory = cast(dict[str, object], report["inventory"])
+    documents = cast(list[dict[str, object]], inventory["documents"])
+    summaries = cast(list[dict[str, object]], report["summaries"])
+
+    assert documents[0]["status"] == "parsed"
+    assert documents[0]["truncated"] is True
+    assert summaries[0]["truncated"] is True
+
+
+def test_document_ingest_marks_small_csv_not_truncated(tmp_path: Path) -> None:
+    input_dir = tmp_path / "docs"
+    input_dir.mkdir()
+    export = input_dir / "export.csv"
+    _write_csv_with_total_lines(export, total_lines=5)
+
+    report = run_document_ingest(input_dir)
+    inventory = cast(dict[str, object], report["inventory"])
+    documents = cast(list[dict[str, object]], inventory["documents"])
+
+    assert documents[0]["status"] == "parsed"
+    assert documents[0]["truncated"] is False
+
+
+def test_document_ingest_csv_row_cap_boundary_is_exact(tmp_path: Path) -> None:
+    input_dir = tmp_path / "docs"
+    input_dir.mkdir()
+
+    at_cap = input_dir / "at_cap.csv"
+    _write_csv_with_total_lines(at_cap, total_lines=300)
+    at_cap_report = run_document_ingest(at_cap)
+    at_cap_documents = cast(
+        list[dict[str, object]],
+        cast(dict[str, object], at_cap_report["inventory"])["documents"],
+    )
+    assert at_cap_documents[0]["truncated"] is False
+
+    over_cap = input_dir / "over_cap.csv"
+    _write_csv_with_total_lines(over_cap, total_lines=301)
+    over_cap_report = run_document_ingest(over_cap)
+    over_cap_documents = cast(
+        list[dict[str, object]],
+        cast(dict[str, object], over_cap_report["inventory"])["documents"],
+    )
+    assert over_cap_documents[0]["truncated"] is True
+
+
+def test_document_ingest_json_scalar_boundary_is_exact(tmp_path: Path) -> None:
+    input_dir = tmp_path / "docs"
+    input_dir.mkdir()
+
+    at_cap = input_dir / "at_cap.json"
+    at_cap.write_text(json.dumps([f"value {index}" for index in range(500)]), encoding="utf-8")
+    at_cap_report = run_document_ingest(at_cap)
+    at_cap_documents = cast(
+        list[dict[str, object]],
+        cast(dict[str, object], at_cap_report["inventory"])["documents"],
+    )
+    assert at_cap_documents[0]["truncated"] is False
+
+    over_cap = input_dir / "over_cap.json"
+    over_cap.write_text(json.dumps([f"value {index}" for index in range(501)]), encoding="utf-8")
+    over_cap_report = run_document_ingest(over_cap)
+    over_cap_documents = cast(
+        list[dict[str, object]],
+        cast(dict[str, object], over_cap_report["inventory"])["documents"],
+    )
+    summaries = cast(list[dict[str, object]], over_cap_report["summaries"])
+    assert over_cap_documents[0]["truncated"] is True
+    assert summaries[0]["truncated"] is True
