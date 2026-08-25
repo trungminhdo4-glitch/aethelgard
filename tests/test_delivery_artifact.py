@@ -66,6 +66,10 @@ def test_check_delivery_artifact_blocks_forbidden_paths(
         "PASSWORD=MASKED\n",
         "SECRET=MASKED\n",
         "API_KEY=MASKED\n",
+        'TOKEN="LIVE"\n',
+        "PASSWORD='LIVE'\n",
+        'API_KEY = "LIVE"\n',
+        "SECRET = LIVE\n",
         "-----BEGIN PRIVATE KEY-----\nMASKED\n",
     ],
 )
@@ -77,6 +81,29 @@ def test_check_delivery_artifact_blocks_secret_markers(tmp_path: Path, content: 
 
     assert report["status"] == STATUS_BLOCKED
     assert _has_blocker(report, "secret_marker")
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        'TOKEN=""\n',
+        "PASSWORD = ''\n",
+        'SECRET = "   "\n',
+        "API_KEY =\nnext_setting=true\n",
+        "The deployment token is supplied at runtime.\n",
+    ],
+)
+def test_check_delivery_artifact_allows_empty_placeholders_and_benign_text(
+    tmp_path: Path,
+    content: str,
+) -> None:
+    artifact = _minimal_artifact(tmp_path)
+    _write_file(artifact / "notes.txt", content)
+
+    report = build_report(artifact)
+
+    assert report["status"] == STATUS_OK
+    assert not _has_blocker(report, "secret_marker")
 
 
 def test_check_delivery_artifact_scans_secret_marker_after_old_prefix(tmp_path: Path) -> None:
