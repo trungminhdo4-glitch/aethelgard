@@ -71,6 +71,11 @@ python -m venv .venv
 pip install -e ".[all]"
 ```
 
+Built wheels include the versioned control catalogs, so commands such as
+`python -m aethelgard.cli validate-controls` work outside the source checkout. The
+`--catalog-dir` option remains available for an explicit catalog override; frozen pilot
+artifacts continue to use `data/control_catalogs` beside the executable.
+
 ## Validate
 
 ```powershell

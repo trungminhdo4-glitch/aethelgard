@@ -346,7 +346,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--catalog-dir",
         type=Path,
         default=None,
-        help="Control catalog directory. Defaults to data/control_catalogs.",
+        help="Control catalog directory. Defaults to bundled catalogs.",
     )
 
     questionnaire_parser = subparsers.add_parser(
@@ -365,7 +365,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--catalog-dir",
         type=Path,
         default=None,
-        help="Control catalog directory. Defaults to data/control_catalogs.",
+        help="Control catalog directory. Defaults to bundled catalogs.",
     )
 
     answer_vault_parser = subparsers.add_parser(
@@ -518,7 +518,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--catalog-dir",
         type=Path,
         default=None,
-        help="Control catalog directory. Defaults to data/control_catalogs.",
+        help="Control catalog directory. Defaults to bundled catalogs.",
     )
 
     trust_bundle_parser = subparsers.add_parser(

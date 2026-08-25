@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from collections.abc import Mapping, Sequence
+from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Final, Literal, cast
 
@@ -163,12 +164,43 @@ def load_control_catalog_bundle(
     catalog_dir: Path | str | None = None,
 ) -> ControlCatalogBundle:
     """Load and validate the bundled local C-SCRM control catalogs."""
-    base_dir = _default_control_catalog_dir() if catalog_dir is None else Path(catalog_dir)
-    catalogs = (
-        _load_catalog(base_dir / NIS2_CATALOG_FILE),
-        _load_catalog(base_dir / DIN_LIGHT_CATALOG_FILE),
+    if catalog_dir is not None:
+        return _load_control_catalog_dir(Path(catalog_dir))
+
+    default_dir = _default_control_catalog_dir()
+    if getattr(sys, "frozen", False) or default_dir.is_dir():
+        return _load_control_catalog_dir(default_dir)
+
+    resource_dir = files("aethelgard").joinpath("data", CATALOG_DIR_NAME)
+    try:
+        with (
+            as_file(resource_dir.joinpath(NIS2_CATALOG_FILE)) as nis2_path,
+            as_file(resource_dir.joinpath(DIN_LIGHT_CATALOG_FILE)) as din_light_path,
+            as_file(resource_dir.joinpath(CROSS_FRAMEWORK_MAP_FILE)) as map_path,
+        ):
+            return _load_control_catalog_files(nis2_path, din_light_path, map_path)
+    except OSError as exc:
+        raise ControlCatalogError("could not read bundled control catalog resources") from exc
+
+
+def _load_control_catalog_dir(base_dir: Path) -> ControlCatalogBundle:
+    return _load_control_catalog_files(
+        base_dir / NIS2_CATALOG_FILE,
+        base_dir / DIN_LIGHT_CATALOG_FILE,
+        base_dir / CROSS_FRAMEWORK_MAP_FILE,
     )
-    cross_framework_map = _load_cross_framework_map(base_dir / CROSS_FRAMEWORK_MAP_FILE)
+
+
+def _load_control_catalog_files(
+    nis2_path: Path,
+    din_light_path: Path,
+    map_path: Path,
+) -> ControlCatalogBundle:
+    catalogs = (
+        _load_catalog(nis2_path),
+        _load_catalog(din_light_path),
+    )
+    cross_framework_map = _load_cross_framework_map(map_path)
     bundle = ControlCatalogBundle(catalogs=catalogs, cross_framework_map=cross_framework_map)
     validate_control_catalog_bundle(bundle)
     return bundle
