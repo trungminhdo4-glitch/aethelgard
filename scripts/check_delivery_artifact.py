@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import argparse
+import codecs
 import json
 import re
 import sys
 from pathlib import Path, PurePosixPath
-from typing import Final, TypedDict
+from typing import BinaryIO, Final, TypedDict
 
 REPORT_JSON_NAME: Final[str] = "delivery_check_report.json"
 REPORT_MD_NAME: Final[str] = "delivery_check_report.md"
 MANIFEST_NAME: Final[str] = "build_manifest.json"
 MAX_SCAN_BYTES: Final[int] = 1_000_000
+MAX_TEXT_FILE_BYTES: Final[int] = 64 * 1024 * 1024
+MAX_MANIFEST_BYTES: Final[int] = 1_000_000
+SCAN_OVERLAP_CHARS: Final[int] = 128
 STATUS_OK: Final[str] = "OK"
 STATUS_BLOCKED: Final[str] = "BLOCKED"
 
@@ -45,6 +49,79 @@ SOURCE_SUFFIXES: Final[tuple[str, ...]] = (
     ".pyi",
     ".pyw",
 )
+TEXT_SUFFIXES: Final[frozenset[str]] = frozenset(
+    {
+        ".c",
+        ".cfg",
+        ".conf",
+        ".cpp",
+        ".cs",
+        ".css",
+        ".csv",
+        ".go",
+        ".h",
+        ".hpp",
+        ".htm",
+        ".html",
+        ".ini",
+        ".java",
+        ".js",
+        ".json",
+        ".jsonl",
+        ".jsx",
+        ".key",
+        ".lock",
+        ".log",
+        ".md",
+        ".pem",
+        ".properties",
+        ".ps1",
+        ".py",
+        ".pyi",
+        ".pyw",
+        ".rb",
+        ".rst",
+        ".sh",
+        ".sql",
+        ".svg",
+        ".toml",
+        ".ts",
+        ".tsv",
+        ".tsx",
+        ".txt",
+        ".xml",
+        ".yaml",
+        ".yml",
+    }
+)
+TEXT_FILENAMES: Final[frozenset[str]] = frozenset(
+    {
+        "dockerfile",
+        "license",
+        "makefile",
+        "notice",
+        "requirements.txt",
+    }
+)
+KNOWN_BINARY_MAGIC: Final[tuple[bytes, ...]] = (
+    b"MZ",
+    b"\x7fELF",
+    b"PK\x03\x04",
+    b"PK\x05\x06",
+    b"PK\x07\x08",
+    b"\x89PNG\r\n\x1a\n",
+    b"\xff\xd8\xff",
+    b"GIF87a",
+    b"GIF89a",
+    b"%PDF-",
+    b"\x1f\x8b",
+    b"BZh",
+    b"7z\xbc\xaf\x27\x1c",
+    b"SQLite format 3\x00",
+    b"\xca\xfe\xba\xbe",
+    b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",
+    b"\x00asm",
+)
 INTERNAL_NAME_MARKERS: Final[tuple[str, ...]] = (
     "prompt",
     ".codex",
@@ -57,12 +134,12 @@ RAW_CUSTOMER_NAME_MARKERS: Final[tuple[str, ...]] = (
     "customer_raw",
     "kundendokument",
 )
-SECRET_MARKERS: Final[tuple[tuple[str, re.Pattern[bytes]], ...]] = (
-    ("private_key_marker", re.compile(rb"-----BEGIN PRIVATE KEY-----", re.IGNORECASE)),
-    ("token_assignment", re.compile(rb"\bTOKEN\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
-    ("password_assignment", re.compile(rb"\bPASSWORD\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
-    ("secret_assignment", re.compile(rb"\bSECRET\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
-    ("api_key_assignment", re.compile(rb"\bAPI_KEY\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
+SECRET_MARKERS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
+    ("private_key_marker", re.compile(r"-----BEGIN PRIVATE KEY-----", re.IGNORECASE)),
+    ("token_assignment", re.compile(r"\bTOKEN\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
+    ("password_assignment", re.compile(r"\bPASSWORD\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
+    ("secret_assignment", re.compile(r"\bSECRET\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
+    ("api_key_assignment", re.compile(r"\bAPI_KEY\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
 )
 SELF_REPORT_NAMES: Final[frozenset[str]] = frozenset({REPORT_JSON_NAME, REPORT_MD_NAME})
 
@@ -143,7 +220,18 @@ def _load_manifest(root: Path, blockers: list[Finding]) -> dict[str, object]:
         blockers.append(_finding("manifest_missing", MANIFEST_NAME, "build manifest is required."))
         return {}
     try:
-        loaded: object = json.loads(manifest_path.read_text(encoding="utf-8"))
+        with manifest_path.open("rb") as stream:
+            raw_manifest = stream.read(MAX_MANIFEST_BYTES + 1)
+        if len(raw_manifest) > MAX_MANIFEST_BYTES:
+            blockers.append(
+                _finding(
+                    "manifest_too_large",
+                    MANIFEST_NAME,
+                    "build manifest exceeds the 1000000-byte parsing limit.",
+                )
+            )
+            return {}
+        loaded: object = json.loads(raw_manifest.decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         blockers.append(
             _finding("manifest_invalid", MANIFEST_NAME, "build manifest could not be parsed.")
@@ -200,17 +288,139 @@ def _path_blockers(path: Path, relative_path: str) -> list[Finding]:
 
 
 def _content_blockers(path: Path, relative_path: str) -> list[Finding]:
-    if path.name in SELF_REPORT_NAMES:
-        return []
     try:
-        data = path.read_bytes()[:MAX_SCAN_BYTES]
+        file_size = path.stat().st_size
+        with path.open("rb") as stream:
+            return _opened_content_blockers(stream, path, relative_path, file_size)
     except OSError:
         return [_finding("unreadable_file", relative_path, "file could not be scanned.")]
-    if b"\x00" in data:
+
+
+def _opened_content_blockers(
+    stream: BinaryIO,
+    path: Path,
+    relative_path: str,
+    file_size: int,
+) -> list[Finding]:
+    first_chunk = stream.read(MAX_SCAN_BYTES)
+    if any(first_chunk.startswith(magic) for magic in KNOWN_BINARY_MAGIC):
         return []
+    is_text, encoding = _classify_text(path, first_chunk)
+    if not is_text:
+        return []
+    if encoding is None:
+        return [
+            _finding(
+                "unsupported_text_encoding",
+                relative_path,
+                "text-like file is not valid UTF-8 or UTF-16.",
+            )
+        ]
+    if file_size > MAX_TEXT_FILE_BYTES:
+        return [
+            _finding(
+                "oversized_text_file",
+                relative_path,
+                "text file exceeds the 64 MiB scan limit.",
+            )
+        ]
+    return _scan_text_stream(stream, first_chunk, encoding, relative_path)
+
+
+def _classify_text(path: Path, data: bytes) -> tuple[bool, str | None]:
+    known_text = _is_known_text_file(path)
+    encoding: str | None
+    if data.startswith((codecs.BOM_UTF32_LE, codecs.BOM_UTF32_BE)):
+        return True, None
+    if data.startswith(codecs.BOM_UTF8):
+        encoding = "utf-8-sig"
+    elif data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        encoding = "utf-16"
+    else:
+        encoding = _bomless_utf16_encoding(data)
+        if encoding is None:
+            try:
+                decoder = codecs.getincrementaldecoder("utf-8")(errors="strict")
+                decoded = decoder.decode(data, final=False)
+            except UnicodeDecodeError:
+                return known_text or _looks_like_single_byte_text(data), None
+            if not known_text and not _looks_like_text(decoded):
+                return False, None
+            encoding = "utf-8"
+    return True, encoding
+
+
+def _scan_text_stream(
+    stream: BinaryIO,
+    first_chunk: bytes,
+    encoding: str,
+    relative_path: str,
+) -> list[Finding]:
+    decoder = codecs.getincrementaldecoder(encoding)(errors="strict")
     blockers: list[Finding] = []
+    detected_markers: set[str] = set()
+    overlap = ""
+    bytes_scanned = 0
+    chunk = first_chunk
+    try:
+        while chunk:
+            bytes_scanned += len(chunk)
+            if bytes_scanned > MAX_TEXT_FILE_BYTES:
+                return [
+                    _finding(
+                        "oversized_text_file",
+                        relative_path,
+                        "text file exceeds the 64 MiB scan limit.",
+                    )
+                ]
+            decoded = decoder.decode(chunk, final=False)
+            if "\x00" in decoded:
+                return [_decoded_nul_blocker(relative_path, encoding)]
+            overlap = _scan_text_window(
+                overlap + decoded,
+                relative_path,
+                detected_markers,
+                blockers,
+            )
+            chunk = stream.read(MAX_SCAN_BYTES)
+
+        final_text = decoder.decode(b"", final=True)
+        if "\x00" in final_text:
+            return [_decoded_nul_blocker(relative_path, encoding)]
+        _scan_text_window(
+            overlap + final_text,
+            relative_path,
+            detected_markers,
+            blockers,
+        )
+    except UnicodeDecodeError:
+        return [
+            _finding(
+                "unscannable_text_file",
+                relative_path,
+                "text file could not be decoded completely as %s." % encoding,
+            )
+        ]
+    return blockers
+
+
+def _decoded_nul_blocker(relative_path: str, encoding: str) -> Finding:
+    return _finding(
+        "unscannable_text_file",
+        relative_path,
+        "text file contains an unexpected NUL after %s decoding." % encoding,
+    )
+
+
+def _scan_text_window(
+    text: str,
+    relative_path: str,
+    detected_markers: set[str],
+    blockers: list[Finding],
+) -> str:
     for marker_id, pattern in SECRET_MARKERS:
-        if pattern.search(data):
+        if marker_id not in detected_markers and pattern.search(text):
+            detected_markers.add(marker_id)
             blockers.append(
                 _finding(
                     "secret_marker",
@@ -218,7 +428,46 @@ def _content_blockers(path: Path, relative_path: str) -> list[Finding]:
                     "secret-like marker detected: %s." % marker_id,
                 )
             )
-    return blockers
+    return text[-SCAN_OVERLAP_CHARS:]
+
+
+def _bomless_utf16_encoding(data: bytes) -> str | None:
+    if len(data) < 4:
+        return None
+    even_bytes = data[0::2]
+    odd_bytes = data[1::2]
+    even_nul_ratio = even_bytes.count(0) / len(even_bytes)
+    odd_nul_ratio = odd_bytes.count(0) / len(odd_bytes)
+    if odd_nul_ratio >= 0.3 and even_nul_ratio <= 0.05:
+        return "utf-16-le"
+    if even_nul_ratio >= 0.3 and odd_nul_ratio <= 0.05:
+        return "utf-16-be"
+    return None
+
+
+def _looks_like_text(text: str) -> bool:
+    if not text:
+        return True
+    allowed_controls = "\t\n\r\f"
+    control_count = sum(
+        1 for character in text if ord(character) < 32 and character not in allowed_controls
+    )
+    control_count += text.count("\x7f")
+    return control_count / len(text) <= 0.02
+
+
+def _looks_like_single_byte_text(data: bytes) -> bool:
+    if not data:
+        return True
+    control_count = sum(
+        1 for value in data if value < 32 and value not in {9, 10, 12, 13}
+    )
+    control_count += data.count(b"\x7f")
+    return control_count / len(data) <= 0.02
+
+
+def _is_known_text_file(path: Path) -> bool:
+    return path.suffix.casefold() in TEXT_SUFFIXES or path.name.casefold() in TEXT_FILENAMES
 
 
 def _manifest_source_claim_blockers(
