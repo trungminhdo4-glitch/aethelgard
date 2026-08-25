@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import csv
 import json
+import shutil
+import sys
 from pathlib import Path
 from typing import cast
 
@@ -88,6 +90,25 @@ def test_control_catalog_ids_unique_and_cli_validates() -> None:
 
     assert exit_code == 0
     assert len(control_ids) == len(set(control_ids))
+
+
+def test_control_catalog_uses_executable_adjacent_data_when_frozen(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_catalogs = Path(__file__).resolve().parents[1] / "data" / "control_catalogs"
+    frozen_catalogs = tmp_path / "data" / "control_catalogs"
+    shutil.copytree(source_catalogs, frozen_catalogs)
+    nis2_catalog_path = frozen_catalogs / "nis2_supply_chain_controls.json"
+    nis2_catalog = _read_json(nis2_catalog_path)
+    nis2_catalog["catalog_id"] = "frozen_test_catalog"
+    nis2_catalog_path.write_text(json.dumps(nis2_catalog), encoding="utf-8")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "aethelgard-pilot.exe"))
+
+    bundle = load_control_catalog_bundle()
+
+    assert bundle.catalog_ids[0] == "frozen_test_catalog"
 
 
 def test_cross_framework_mappings_reference_existing_controls() -> None:

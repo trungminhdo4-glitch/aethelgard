@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Final, Literal, cast
@@ -13,9 +14,15 @@ CATALOG_DIR_NAME: Final[str] = "control_catalogs"
 NIS2_CATALOG_FILE: Final[str] = "nis2_supply_chain_controls.json"
 DIN_LIGHT_CATALOG_FILE: Final[str] = "din_spec_27076_light.json"
 CROSS_FRAMEWORK_MAP_FILE: Final[str] = "cross_framework_map.json"
-DEFAULT_CONTROL_CATALOG_DIR: Final[Path] = (
-    Path(__file__).resolve().parents[2] / "data" / CATALOG_DIR_NAME
-)
+
+
+def _default_control_catalog_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "data" / CATALOG_DIR_NAME
+    return Path(__file__).resolve().parents[2] / "data" / CATALOG_DIR_NAME
+
+
+DEFAULT_CONTROL_CATALOG_DIR: Final[Path] = _default_control_catalog_dir()
 
 MAX_CONTROL_ID_CHARS: Final[int] = 80
 MAX_FRAMEWORK_CHARS: Final[int] = 80
@@ -153,10 +160,10 @@ class ControlCatalogBundle(BaseModel):
 
 
 def load_control_catalog_bundle(
-    catalog_dir: Path | str = DEFAULT_CONTROL_CATALOG_DIR,
+    catalog_dir: Path | str | None = None,
 ) -> ControlCatalogBundle:
     """Load and validate the bundled local C-SCRM control catalogs."""
-    base_dir = Path(catalog_dir)
+    base_dir = _default_control_catalog_dir() if catalog_dir is None else Path(catalog_dir)
     catalogs = (
         _load_catalog(base_dir / NIS2_CATALOG_FILE),
         _load_catalog(base_dir / DIN_LIGHT_CATALOG_FILE),
