@@ -136,10 +136,10 @@ RAW_CUSTOMER_NAME_MARKERS: Final[tuple[str, ...]] = (
 )
 SECRET_MARKERS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("private_key_marker", re.compile(r"-----BEGIN PRIVATE KEY-----", re.IGNORECASE)),
-    ("token_assignment", re.compile(r"\bTOKEN\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
-    ("password_assignment", re.compile(r"\bPASSWORD\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
-    ("secret_assignment", re.compile(r"\bSECRET\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
-    ("api_key_assignment", re.compile(r"\bAPI_KEY\s*=\s*[^\s'\"),]+", re.IGNORECASE)),
+    ("token_assignment", re.compile(r"\bTOKEN[ \t]*=[ \t]*['\"]?[^\s'\"),]+", re.IGNORECASE)),
+    ("password_assignment", re.compile(r"\bPASSWORD[ \t]*=[ \t]*['\"]?[^\s'\"),]+", re.IGNORECASE)),
+    ("secret_assignment", re.compile(r"\bSECRET[ \t]*=[ \t]*['\"]?[^\s'\"),]+", re.IGNORECASE)),
+    ("api_key_assignment", re.compile(r"\bAPI_KEY[ \t]*=[ \t]*['\"]?[^\s'\"),]+", re.IGNORECASE)),
 )
 SELF_REPORT_NAMES: Final[frozenset[str]] = frozenset({REPORT_JSON_NAME, REPORT_MD_NAME})
 
