@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import base64
 import json
 from pathlib import Path
 
 import pytest
 from scripts.check_delivery_artifact import (
+    MAX_SCAN_BYTES,
     STATUS_BLOCKED,
     STATUS_OK,
     build_report,
@@ -75,6 +77,54 @@ def test_check_delivery_artifact_blocks_secret_markers(tmp_path: Path, content: 
 
     assert report["status"] == STATUS_BLOCKED
     assert _has_blocker(report, "secret_marker")
+
+
+def test_check_delivery_artifact_scans_secret_marker_after_old_prefix(tmp_path: Path) -> None:
+    artifact = _minimal_artifact(tmp_path)
+    (artifact / "notes.txt").write_bytes(
+        b"A" * (MAX_SCAN_BYTES + 17) + b"\nTOKEN=MASKED\n"
+    )
+
+    report = build_report(artifact)
+
+    assert report["status"] == STATUS_BLOCKED
+    assert _has_blocker(report, "secret_marker")
+
+
+def test_check_delivery_artifact_scans_utf16_secret_marker(tmp_path: Path) -> None:
+    artifact = _minimal_artifact(tmp_path)
+    (artifact / "notes.txt").write_text(
+        "UTF-16 pilot notes\nPASSWORD=MASKED\n",
+        encoding="utf-16",
+    )
+
+    report = build_report(artifact)
+
+    assert report["status"] == STATUS_BLOCKED
+    assert _has_blocker(report, "secret_marker")
+
+
+def test_check_delivery_artifact_scans_plaintext_with_binary_suffix(tmp_path: Path) -> None:
+    artifact = _minimal_artifact(tmp_path)
+    (artifact / "notes.png").write_text("TOKEN=MASKED\n", encoding="utf-8")
+
+    report = build_report(artifact)
+
+    assert report["status"] == STATUS_BLOCKED
+    assert _has_blocker(report, "secret_marker")
+
+
+def test_check_delivery_artifact_allows_recognized_binary_content(tmp_path: Path) -> None:
+    artifact = _minimal_artifact(tmp_path)
+    pixel_png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8A"
+        "AQUBAScY42YAAAAASUVORK5CYII="
+    )
+    (artifact / "pixel.png").write_bytes(pixel_png)
+
+    report = build_report(artifact)
+
+    assert report["status"] == STATUS_OK
 
 
 def test_check_delivery_artifact_blocks_source_when_no_source_claim(tmp_path: Path) -> None:
