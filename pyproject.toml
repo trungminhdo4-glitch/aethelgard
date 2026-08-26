@@ -23,7 +23,7 @@ classifiers = [
   "Topic :: Security",
 ]
 dependencies = [
-  "pydantic>=2.5,<3.0",
+  "pydantic>=2.13.4,<3.0",
 ]
 
 [project.optional-dependencies]
