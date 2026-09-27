@@ -20,6 +20,7 @@ from typing import Any, Final, cast
 from aethelgard import __version__
 from aethelgard.mvp1 import (
     ComplianceEvidence,
+    DocumentParserError,
     LocalDocumentParser,
 )
 from aethelgard.nis2_controls import build_control_coverage
@@ -372,7 +373,7 @@ def run_triage(input_path: Path | str, out_dir: Path | str | None = None) -> dic
     for document_path in document_paths:
         try:
             evidence_items = list(parser.parse_and_classify(document_path))
-        except (OSError, ValueError) as exc:
+        except (DocumentParserError, OSError, ValueError) as exc:
             errors.append({"file": _safe_relative(document_path, input_root), "error": str(exc)})
             continue
 
