@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import json
 import sqlite3
@@ -90,7 +91,7 @@ def test_answer_vault_init_is_idempotent_and_seeds_schema(tmp_path: Path) -> Non
     first = init_answer_vault(db_path, client_id="demo-client")
     second = init_answer_vault(db_path, client_id="demo-client")
 
-    with sqlite3.connect(db_path) as connection:
+    with contextlib.closing(sqlite3.connect(db_path)) as connection:
         table_count = connection.execute(
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'"
         ).fetchone()[0]
@@ -114,7 +115,7 @@ def test_answer_vault_import_export_and_versions_answers(tmp_path: Path) -> None
     exported = export_answer_library(db_path, export_path, client_id="demo-client")
     answers = list_answer_library(db_path, client_id="demo-client")
 
-    with sqlite3.connect(db_path) as connection:
+    with contextlib.closing(sqlite3.connect(db_path)) as connection:
         version_count = connection.execute("SELECT COUNT(*) FROM answer_versions").fetchone()[0]
 
     assert first["imported"] == 1

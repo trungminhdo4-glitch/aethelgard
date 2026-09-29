@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import hashlib
 import json
 import sqlite3
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Final, Literal, cast
@@ -1037,10 +1038,19 @@ def _apply_schema(connection: sqlite3.Connection) -> None:
     )
 
 
-def _connect(path: Path) -> sqlite3.Connection:
+@contextlib.contextmanager
+def _connect(path: Path) -> Iterator[sqlite3.Connection]:
     connection = sqlite3.connect(path)
     connection.row_factory = sqlite3.Row
-    return connection
+    try:
+        yield connection
+    except Exception:
+        connection.rollback()
+        raise
+    else:
+        connection.commit()
+    finally:
+        connection.close()
 
 
 def _upsert_client(connection: sqlite3.Connection, client_id: str) -> None:
