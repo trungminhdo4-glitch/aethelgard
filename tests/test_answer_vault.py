@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import json
-import contextlib
 import sqlite3
 from pathlib import Path
 from typing import cast

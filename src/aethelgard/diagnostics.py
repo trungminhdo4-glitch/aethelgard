@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import json
 import platform
 import re
 import shutil
-import contextlib
 import sqlite3
 import subprocess
 import sys

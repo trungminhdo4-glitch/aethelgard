@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import hashlib
 import json
-import contextlib
 import sqlite3
 from collections import Counter
 from collections.abc import Iterator, Mapping, Sequence
