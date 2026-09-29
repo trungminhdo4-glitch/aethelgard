@@ -13,6 +13,7 @@ from aethelgard.answer_vault import (
     CASE_REVIEW_QUEUE_CSV_NAME,
     MISSING_EVIDENCE_CSV_NAME,
     QUESTIONNAIRE_DRAFT_CSV_NAME,
+    _safe_temporal_text,
     build_questionnaire_draft,
     export_answer_library,
     import_answer_library_json,
@@ -122,6 +123,15 @@ def test_answer_vault_import_export_and_versions_answers(tmp_path: Path) -> None
     assert version_count >= 1
     assert exported["answer_count"] == 1
     assert export_path.is_file()
+
+
+def test_safe_temporal_text_masks_sensitive_markers_after_date() -> None:
+    """Bug-Bounty 5.5: datumsfuehrende Strings duerfen Marker nicht leaken."""
+    assert _safe_temporal_text("2026-06-30") == "2026-06-30"
+    assert _safe_temporal_text("") == ""
+    leaked = _safe_temporal_text("2024-01-01 token=ghp_abc123")
+    assert "ghp_abc123" not in leaked
+    assert leaked.startswith("2024-01-01")
 
 
 def test_questionnaire_draft_reuses_reviewed_answer_and_queues_missing(

@@ -1226,7 +1226,13 @@ def _safe_temporal_text(value: str) -> str:
         date.fromisoformat(single_line[:10])
     except ValueError:
         return _safe_text(single_line, MAX_REVIEWER_CHARS)
-    return single_line
+    # Datums-Prefix erhalten (kein Phone-False-Positive auf ISO-Datum),
+    # Rest maskieren: "2024-01-01 token=ghp_..." darf nicht leaken (5.5).
+    head, tail = single_line[:10], single_line[10:]
+    masked_tail = _safe_text(tail, MAX_REVIEWER_CHARS - len(head) - 1)
+    if not masked_tail:
+        return head
+    return head + " " + masked_tail
 
 
 def _is_stale(valid_until: str) -> bool:
