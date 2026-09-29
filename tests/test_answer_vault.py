@@ -18,6 +18,7 @@ from aethelgard.answer_vault import (
     import_answer_library_json,
     init_answer_vault,
     list_answer_library,
+    _safe_temporal_text,
 )
 from aethelgard.cli import PILOT_PRODUCT_ERROR_EXIT_CODE, main
 
@@ -122,6 +123,15 @@ def test_answer_vault_import_export_and_versions_answers(tmp_path: Path) -> None
     assert version_count >= 1
     assert exported["answer_count"] == 1
     assert export_path.is_file()
+
+
+def test_safe_temporal_text_masks_sensitive_markers_after_date() -> None:
+    """Bug-Bounty 5.5: datumsfuehrende Strings duerfen Marker nicht leaken."""
+    assert _safe_temporal_text("2026-06-30") == "2026-06-30"
+    assert _safe_temporal_text("") == ""
+    leaked = _safe_temporal_text("2024-01-01 token=ghp_abc123")
+    assert "ghp_abc123" not in leaked
+    assert leaked.startswith("2024-01-01")
 
 
 def test_questionnaire_draft_reuses_reviewed_answer_and_queues_missing(
