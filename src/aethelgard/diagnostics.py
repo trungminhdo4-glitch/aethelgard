@@ -7,6 +7,7 @@ import json
 import platform
 import re
 import shutil
+import contextlib
 import sqlite3
 import subprocess
 import sys
@@ -575,7 +576,7 @@ def _inventory_excluded_parts() -> frozenset[str]:
 
 def _sqlite_available() -> bool:
     try:
-        with sqlite3.connect(":memory:") as connection:
+        with contextlib.closing(sqlite3.connect(":memory:")) as connection:
             row = cast(tuple[int] | None, connection.execute("SELECT 1").fetchone())
     except sqlite3.Error:
         return False
